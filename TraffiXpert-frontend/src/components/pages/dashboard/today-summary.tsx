@@ -101,7 +101,7 @@ export function TodaySummary() {
         };
 
         fetchData(); // Initial fetch
-        const intervalId = setInterval(fetchData, 5000); // Fetch every 5 seconds
+        const intervalId = setInterval(fetchData, 100); // Fetch every 0.1 seconds
 
         return () => clearInterval(intervalId);
     }, [isLoading]); // Rerun only if isLoading changes
