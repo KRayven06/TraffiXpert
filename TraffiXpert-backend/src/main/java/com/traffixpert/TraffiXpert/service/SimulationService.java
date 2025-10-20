@@ -1,17 +1,18 @@
 package com.traffixpert.TraffiXpert.service; // Adjust package name if needed
 
 import com.traffixpert.TraffiXpert.model.*; // Import model classes
-import org.springframework.scheduling.annotation.Scheduled; // Import the Scheduled annotation
+// import org.springframework.scheduling.annotation.Scheduled; // REMOVE or COMMENT OUT this import
 import org.springframework.stereotype.Service; // Import Spring Service annotation
 
+import jakarta.annotation.PostConstruct; // Import for PostConstruct
+import jakarta.annotation.PreDestroy; // Import for PreDestroy
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.*; // Import concurrent package
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service // Mark this as a Spring Service component
@@ -26,6 +27,12 @@ public class SimulationService {
     private boolean isEmergency;
     private double emergencyTimer;
     private long lastTime; // Use long for System.nanoTime()
+
+    // --- NEW: Simulation Loop Control ---
+    private volatile boolean isRunning = false; // volatile for thread safety
+    private ScheduledExecutorService scheduler;
+    private ScheduledFuture<?> simulationTaskFuture;
+    private static final long UPDATE_INTERVAL_MS = 50; // Approx 20 FPS
 
     // --- Data Logging ---
     // Using ConcurrentLinkedDeque for thread-safe adding/removing from head/tail
@@ -74,21 +81,42 @@ public class SimulationService {
         this.autoModeTimer = 10000; // ms
         this.autoModeState = AutoModeState.N_GREEN;
         this.signals.get(0).setState(SignalState.GREEN); // North signal starts GREEN
-        this.lastTime = System.nanoTime(); // Use nanoTime for more precise delta calculation
 
         this.isEmergency = false;
         this.emergencyTimer = 0;
+
+        // Initialize scheduler but don't start the task yet
+        this.scheduler = Executors.newSingleThreadScheduledExecutor();
+        this.lastTime = System.nanoTime(); // Initialize lastTime here
+        // Start simulation by default (can be changed)
+        // startSimulationLoop(); // Call start method below
     }
+
+    // --- NEW: Start simulation on bean initialization ---
+    @PostConstruct
+    public void initializeSimulation() {
+        startSimulationLoop(); // Start the loop when the service is ready
+    }
+
 
     /**
      * Main update loop for the simulation. Called periodically by the scheduler.
      * Calculates deltaTime and updates signals, roads, and auto mode state.
      */
-    public void update() {
+    public synchronized void update() { // Make synchronized to avoid race conditions with lastTime
+        if (!isRunning) return; // Don't update if paused
+
         long now = System.nanoTime();
         // Calculate deltaTime in milliseconds
         double deltaTime = (now - this.lastTime) / 1_000_000.0;
         this.lastTime = now;
+
+        // Prevent excessively large deltaTime if simulation was paused for a long time
+        if (deltaTime > UPDATE_INTERVAL_MS * 5) { // e.g., if paused > 250ms
+             System.out.println("Large deltaTime detected, capping: " + deltaTime);
+             deltaTime = UPDATE_INTERVAL_MS; // Cap delta to avoid large jumps
+        }
+
 
         // Handle emergency state
         if (this.isEmergency) {
@@ -108,10 +136,17 @@ public class SimulationService {
         }
 
         // Update each road, passing the state of its corresponding signal
-        roads.get(0).update(deltaTime, signals.get(0).getState()); // North Road (Signal 0)
-        roads.get(1).update(deltaTime, signals.get(1).getState()); // South Road (Signal 1)
-        roads.get(2).update(deltaTime, signals.get(2).getState()); // East Road (Signal 2)
-        roads.get(3).update(deltaTime, signals.get(3).getState()); // West Road (Signal 3)
+        // Use try-catch for potential concurrent modification if lists change unexpectedly
+        try {
+            roads.get(0).update(deltaTime, signals.get(0).getState()); // North Road (Signal 0)
+            roads.get(1).update(deltaTime, signals.get(1).getState()); // South Road (Signal 1)
+            roads.get(2).update(deltaTime, signals.get(2).getState()); // East Road (Signal 2)
+            roads.get(3).update(deltaTime, signals.get(3).getState()); // West Road (Signal 3)
+        } catch (Exception e) {
+             System.err.println("Error during road update: " + e.getMessage());
+             // Consider pausing simulation on error?
+             // stopSimulationLoop();
+        }
     }
 
     /**
@@ -266,18 +301,61 @@ public class SimulationService {
         this.totalVehicleCount += count;
     }
 
-    /**
-     * Scheduled task to run the simulation update loop periodically.
-     * fixedRate = 50 means it tries to run every 50 milliseconds.
-     * Adjust the rate based on desired simulation speed and performance.
-     */
-    @Scheduled(fixedRate = 50) // Run approximately 20 times per second
-    public void runSimulationUpdate() {
-        this.update(); // Call the main update method
+
+    // --- REMOVED @Scheduled annotation ---
+    // @Scheduled(fixedRate = 50) // Run approximately 20 times per second
+    // public void runSimulationUpdate() {
+    //     this.update(); // Call the main update method
+    // }
+
+    // --- NEW: Simulation Control Methods ---
+
+    /** Starts the simulation update loop if not already running. */
+    public synchronized void startSimulationLoop() {
+        if (!isRunning) {
+            isRunning = true;
+            lastTime = System.nanoTime(); // Reset timer when starting/resuming
+            // Schedule the update task to run repeatedly
+            simulationTaskFuture = scheduler.scheduleAtFixedRate(this::update, 0, UPDATE_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            System.out.println("Simulation loop started.");
+        }
     }
 
+    /** Stops the simulation update loop if running. */
+    public synchronized void stopSimulationLoop() {
+        if (isRunning) {
+            isRunning = false;
+            if (simulationTaskFuture != null && !simulationTaskFuture.isCancelled()) {
+                simulationTaskFuture.cancel(false); // false = don't interrupt if running
+            }
+            System.out.println("Simulation loop stopped.");
+        }
+    }
+
+    /** Cleans up the scheduler when the application shuts down. */
+    @PreDestroy
+    public void shutdownScheduler() {
+        stopSimulationLoop(); // Ensure loop is stopped
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdown();
+            try {
+                // Wait a bit for tasks to finish
+                if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                    scheduler.shutdownNow();
+                }
+            } catch (InterruptedException ie) {
+                scheduler.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            System.out.println("Simulation scheduler shut down.");
+        }
+    }
 
     // --- Getters for State (used by Controllers later) ---
+
+    public boolean isSimulationRunning() { // NEW Getter for running state
+        return isRunning;
+    }
 
     public List<TrafficSignal> getSignals() {
         return signals;
@@ -316,15 +394,19 @@ public class SimulationService {
         int currentVehicleCount = 0;
         int northCount = 0, southCount = 0, eastCount = 0, westCount = 0;
 
+        // Use synchronized block or CopyOnWriteArrayList if roads list could change
+        // For simplicity, assuming roads list is fixed after construction.
         for (Road road : roads) {
-            currentVehicleCount += road.getVehicles().size();
+             // Access vehicles safely - consider using synchronized block or concurrent list in Road
+             List<Vehicle> currentRoadVehicles = new ArrayList<>(road.getVehicles()); // Copy to avoid issues if list changes during iteration
+             currentVehicleCount += currentRoadVehicles.size();
             switch (road.getName()) {
-                case NORTH: northCount = road.getVehicles().size(); break;
-                case SOUTH: southCount = road.getVehicles().size(); break;
-                case EAST:  eastCount = road.getVehicles().size(); break;
-                case WEST:  westCount = road.getVehicles().size(); break;
+                case NORTH: northCount = currentRoadVehicles.size(); break;
+                case SOUTH: southCount = currentRoadVehicles.size(); break;
+                case EAST:  eastCount = currentRoadVehicles.size(); break;
+                case WEST:  westCount = currentRoadVehicles.size(); break;
             }
-            for (Vehicle v : road.getVehicles()) {
+            for (Vehicle v : currentRoadVehicles) {
                 // Check if vehicle is actually waiting at a light or behind another car
                  if (!v.isMoving()) { // Simplified: assume !isMoving means waiting
                     totalWaitTime += v.getWaitTime();
@@ -360,7 +442,7 @@ public class SimulationService {
 
         // Create and return Stats object
         return new Stats(
-                this.totalVehicleCount + currentVehicleCount,
+                this.totalVehicleCount + currentVehicleCount, // totalVehicles tracks vehicles that *have passed*
                 avgWaitTimeSeconds,
                 Map.of( // Using an immutable map
                     RoadDirection.NORTH, northCount,
@@ -375,9 +457,9 @@ public class SimulationService {
      // Inner class/record for Stats - better than defining a separate file for simple data structure
      // Record is immutable by default (Java 16+)
     public record Stats(
-        long totalVehicles,
+        long totalVehicles, // Total vehicles that have passed through + currently on road
         double avgWaitTime,
-        Map<RoadDirection, Integer> vehiclesByDirection,
+        Map<RoadDirection, Integer> vehiclesByDirection, // Currently on road by direction
         double avgEmergencyResponse,
         Double lastEmergencyClearance // Use Double for nullability
     ) {}
