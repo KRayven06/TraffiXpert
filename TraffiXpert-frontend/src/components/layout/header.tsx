@@ -2,8 +2,6 @@
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { usePathname } from 'next/navigation';
-import { Button } from "@/components/ui/button";
-import { Bell } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const getPageTitle = (pathname: string) => {
@@ -12,7 +10,7 @@ const getPageTitle = (pathname: string) => {
     if (pathname.startsWith('/emergency')) return 'Emergency Management';
     if (pathname.startsWith('/how-it-works')) return 'How It Works';
     if (pathname === '/') return 'Live Dashboard';
-    return 'VerdantFlow';
+    return 'TraffiXpert';
 }
 
 export function Header() {
@@ -29,10 +27,6 @@ export function Header() {
       </h1>
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Bell />
-          <span className="sr-only">Notifications</span>
-        </Button>
       </div>
     </header>
   );
