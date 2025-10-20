@@ -8,12 +8,16 @@ import jakarta.annotation.PostConstruct; // Import for PostConstruct
 import jakarta.annotation.PreDestroy; // Import for PreDestroy
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.Duration; // Import Duration
+import java.time.Instant; // Import Instant
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*; // Import concurrent package
+import java.util.concurrent.atomic.AtomicInteger; // Import AtomicInteger
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors; // Import Collectors
 
 @Service // Mark this as a Spring Service component
 public class SimulationService {
@@ -28,34 +32,36 @@ public class SimulationService {
     private double emergencyTimer;
     private long lastTime; // Use long for System.nanoTime()
 
-    // --- NEW: Simulation Loop Control ---
+    // --- Simulation Loop Control ---
     private volatile boolean isRunning = false; // volatile for thread safety
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> simulationTaskFuture;
     private static final long UPDATE_INTERVAL_MS = 50; // Approx 20 FPS
 
+    // --- Incident Tracking ---
+    private final AtomicInteger incidentCount = new AtomicInteger(0); // Thread-safe counter for incidents
+
     // --- Data Logging ---
-    // Using ConcurrentLinkedDeque for thread-safe adding/removing from head/tail
     private final ConcurrentLinkedDeque<Violation> violations = new ConcurrentLinkedDeque<>();
-    private final ConcurrentLinkedDeque<EmergencyEvent> emergencyLog = new ConcurrentLinkedDeque<>();
-    private final List<Double> emergencyResponseTimes = Collections.synchronizedList(new ArrayList<>()); // Thread-safe list
+    // --- MODIFIED: Use Map for easy update of EmergencyEvent ---
+    private final ConcurrentHashMap<String, EmergencyEvent> emergencyLogMap = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedDeque<String> emergencyLogOrder = new ConcurrentLinkedDeque<>(); // To maintain order & size limit
+    private final List<Double> emergencyResponseTimes = Collections.synchronizedList(new ArrayList<>());
     private long totalVehicleCount = 0; // Cumulative count of vehicles that have passed
 
-    private static final int MAX_LOG_SIZE = 10; // Max size for violation/emergency logs
-
+    private static final int MAX_LOG_SIZE = 10;
     private static final AtomicLong violationIdCounter = new AtomicLong(0);
     private static final AtomicLong emergencyIdCounter = new AtomicLong(0);
-
-    // Formatter for time strings in logs
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    // --- NEW: Tracking current emergency vehicle ---
+    private volatile Long currentEmergencyVehicleId = null; // ID of the active emergency vehicle
+    private volatile Instant currentEmergencyStartTime = null; // Time it was spawned
 
 
     // Enum for AutoModeState, mirroring TS logic
-    private enum AutoModeState {
-        N_GREEN, N_YELLOW,
-        S_GREEN, S_YELLOW,
-        E_GREEN, E_YELLOW,
-        W_GREEN, W_YELLOW
+     private enum AutoModeState {
+        N_GREEN, N_YELLOW, S_GREEN, S_YELLOW, E_GREEN, E_YELLOW, W_GREEN, W_YELLOW
     }
 
     /**
@@ -89,10 +95,10 @@ public class SimulationService {
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
         this.lastTime = System.nanoTime(); // Initialize lastTime here
         // Start simulation by default (can be changed)
-        // startSimulationLoop(); // Call start method below
+        // startSimulationLoop(); // Called via @PostConstruct now
     }
 
-    // --- NEW: Start simulation on bean initialization ---
+    // --- Start simulation on bean initialization ---
     @PostConstruct
     public void initializeSimulation() {
         startSimulationLoop(); // Start the loop when the service is ready
@@ -122,7 +128,15 @@ public class SimulationService {
         if (this.isEmergency) {
             this.emergencyTimer -= deltaTime;
             if (this.emergencyTimer <= 0) {
+                 System.out.println("Emergency timer expired.");
+                 // Check if emergency vehicle is still tracked (meaning it hasn't exited yet)
+                 if(this.currentEmergencyVehicleId != null) {
+                    System.out.println("Emergency ended by timer, but vehicle " + this.currentEmergencyVehicleId + " may still be present.");
+                    // Optionally force-record clearance time based on timer expiry here if needed
+                 }
                 this.isEmergency = false;
+                this.currentEmergencyVehicleId = null; // Clear tracked vehicle when timer ends anyway
+                this.currentEmergencyStartTime = null;
                 this.isAutoMode = true; // Resume auto mode after emergency
                 this.autoModeState = AutoModeState.N_YELLOW; // Transition gracefully
                 this.autoModeTimer = 2000; // Yellow light duration
@@ -144,6 +158,7 @@ public class SimulationService {
             roads.get(3).update(deltaTime, signals.get(3).getState()); // West Road (Signal 3)
         } catch (Exception e) {
              System.err.println("Error during road update: " + e.getMessage());
+             e.printStackTrace(); // Print stack trace for debugging
              // Consider pausing simulation on error?
              // stopSimulationLoop();
         }
@@ -198,7 +213,7 @@ public class SimulationService {
                 this.autoModeTimer = 10000;
                 break;
         }
-    }
+     }
 
     /**
      * Toggles the automatic signal control mode on or off.
@@ -212,8 +227,11 @@ public class SimulationService {
                 signals.get(i).setState(i == 0 ? SignalState.GREEN : SignalState.RED);
             }
             this.autoModeTimer = 10000;
+        } else {
+             System.out.println("Switched to Manual Mode. Signals remain in current state until changed.");
+             // Optionally set all to RED or another default manual state
+             // setAllSignals(SignalState.RED);
         }
-        // No explicit action needed when turning off auto mode in this implementation
     }
 
     /**
@@ -221,53 +239,118 @@ public class SimulationService {
      * @param state The SignalState to set all signals to.
      */
     public void setAllSignals(SignalState state) {
-        this.signals.forEach(s -> s.setState(state));
+         this.signals.forEach(s -> s.setState(state));
     }
 
     /**
-     * Triggers an emergency sequence, spawning an emergency vehicle and setting signals.
+     * Triggers an emergency sequence.
+     * Stores start time and vehicle ID.
      */
     public void triggerEmergency() {
-        if (this.isEmergency) return; // Prevent triggering multiple emergencies simultaneously
+        if (this.isEmergency) {
+             System.out.println("Emergency sequence already active.");
+             return;
+        }
 
         this.isEmergency = true;
-        this.isAutoMode = false; // Disable auto mode during emergency
-        this.emergencyTimer = 15000; // Emergency duration in ms
+        this.isAutoMode = false; // Disable auto mode
+        this.emergencyTimer = 15000; // Max duration / fallback timer
+        this.incidentCount.incrementAndGet();
 
-        // Spawn emergency vehicle on a random road
+        // Spawn emergency vehicle
         int emergencyRoadIndex = ThreadLocalRandom.current().nextInt(this.roads.size());
         Road emergencyRoad = this.roads.get(emergencyRoadIndex);
         Vehicle emergencyVehicle = new Vehicle(emergencyRoad, VehicleType.EMERGENCY);
         emergencyRoad.addVehicleToFront(emergencyVehicle);
 
-        // Set signals: GREEN for emergency road, RED for others
+        // Store emergency vehicle details
+        this.currentEmergencyVehicleId = emergencyVehicle.getId();
+        this.currentEmergencyStartTime = Instant.now();
+        System.out.println("Emergency Triggered. Vehicle ID: " + this.currentEmergencyVehicleId + " on road " + emergencyRoad.getName() + " at " + this.currentEmergencyStartTime);
+
+
+        // Set signals
         for (int i = 0; i < this.signals.size(); i++) {
             this.signals.get(i).setState(i == emergencyRoadIndex ? SignalState.GREEN : SignalState.RED);
         }
 
-        // --- Handle Clearance Time Logging ---
-        // Placeholder for logging start time - actual logging done when vehicle leaves or timer ends
-        long startTime = System.currentTimeMillis();
-
-        // Add event to log immediately (clearance time will be approximate or logged later)
+        // Log initial event (clearance time TBD)
         String eventId = "EV-" + emergencyIdCounter.getAndIncrement();
         EmergencyEvent event = new EmergencyEvent(
             eventId,
             LocalTime.now(),
             "Ambulance", // Assuming type
-            this.emergencyTimer / 1000.0 // Approximate clearance time in seconds
+            0.0 // Clearance time initially 0, will be updated
         );
-        emergencyLog.addFirst(event);
-        if (emergencyLog.size() > MAX_LOG_SIZE) {
-            emergencyLog.pollLast(); // Remove oldest if log is full
+        // Add to map and ordered list
+        emergencyLogMap.put(eventId, event);
+        emergencyLogOrder.addFirst(eventId);
+        // Trim logs if necessary
+        while (emergencyLogOrder.size() > MAX_LOG_SIZE) {
+            String oldestId = emergencyLogOrder.pollLast();
+            if (oldestId != null) {
+                emergencyLogMap.remove(oldestId);
+            }
         }
-        // Add the approximate time to response times
-        emergencyResponseTimes.add(this.emergencyTimer / 1000.0);
-
-
-        // TODO: Implement a better way to track the specific emergency vehicle
-        // and log the actual clearance time when it leaves the simulation area.
+        // Don't add to response times yet
     }
+
+    /**
+     * Called by Road when a specific vehicle exits.
+     * Calculates the duration if it's the tracked emergency vehicle and updates the log/stats.
+     * @param vehicleId The ID of the vehicle that exited.
+     */
+     public synchronized void recordVehicleExit(long vehicleId) {
+         // Check if this is the currently tracked emergency vehicle
+         if (this.currentEmergencyVehicleId != null && vehicleId == this.currentEmergencyVehicleId) {
+             System.out.println("Tracked Emergency Vehicle exited: ID " + vehicleId);
+             if (this.currentEmergencyStartTime != null) {
+                 // Calculate duration
+                 Duration duration = Duration.between(this.currentEmergencyStartTime, Instant.now());
+                 double clearanceTimeSeconds = duration.toMillis() / 1000.0;
+                 System.out.printf("Actual Clearance Time: %.1fs%n", clearanceTimeSeconds);
+
+                 // Update the log entry (find the latest entry)
+                 String latestEventId = emergencyLogOrder.peekFirst();
+                 if (latestEventId != null) {
+                     EmergencyEvent event = emergencyLogMap.get(latestEventId);
+                     // Check if this log entry is indeed the one for the *current* emergency
+                     // (Simple check: is clearance time still 0?)
+                     if (event != null && event.getClearanceTime() == 0.0) {
+                         event.setClearanceTime(clearanceTimeSeconds); // Update the existing event
+                         System.out.println("Updated EmergencyEvent log ID " + latestEventId + " with clearance time.");
+                     } else if (event != null) {
+                        System.out.println("Warning: Latest emergency log entry already had clearance time set or was null for ID " + latestEventId);
+                     } else {
+                         System.err.println("Error: Could not find event in map for latest log ID " + latestEventId);
+                     }
+                 } else {
+                     System.err.println("Error: Emergency log order is empty, cannot update clearance time.");
+                 }
+
+                 // Add accurate time to response times
+                 emergencyResponseTimes.add(clearanceTimeSeconds);
+
+                 // Clear tracking variables - IMPORTANT
+                 this.currentEmergencyVehicleId = null;
+                 this.currentEmergencyStartTime = null;
+
+                 // Optionally: End emergency state early if desired and reset signals/mode
+                 // this.isEmergency = false;
+                 // this.emergencyTimer = 0; // Reset timer too
+                 // this.isAutoMode = true; // Resume auto mode immediately
+                 // this.autoModeState = AutoModeState.N_YELLOW; // Or similar transition
+                 // this.autoModeTimer = 2000;
+
+             } else {
+                 System.err.println("Error: Emergency vehicle exited but start time was not recorded.");
+                 // Clear potentially stale ID anyway
+                 this.currentEmergencyVehicleId = null;
+             }
+         }
+         // Increment total vehicle count for *any* vehicle exiting
+         incrementTotalVehicleCount(1);
+     }
 
 
     /**
@@ -277,47 +360,38 @@ public class SimulationService {
     public void addViolation(String roadNameString) {
         String id = "V-" + violationIdCounter.getAndIncrement();
         LocalTime time = LocalTime.now();
-        // Capitalize first letter of road name
         String location = roadNameString.substring(0, 1).toUpperCase() + roadNameString.substring(1).toLowerCase() + "bound";
-        String type = "Red Light"; // Assuming only red light violations for now
-        String fine = "$150"; // Hardcoded fine
-
+        String type = "Red Light";
+        String fine = "$150";
         Violation violation = new Violation(id, time, location, type, fine);
-
-        violations.addFirst(violation); // Add to the beginning of the deque
-        // Limit log size
+        violations.addFirst(violation);
         if (violations.size() > MAX_LOG_SIZE) {
-            violations.pollLast(); // Remove the oldest entry
+            violations.pollLast();
         }
     }
 
 
      /**
      * Increments the total count of vehicles that have passed through.
-     * Called by Road when vehicles exit.
+     * Called by recordVehicleExit now.
      * @param count Number of vehicles that exited.
      */
     public synchronized void incrementTotalVehicleCount(int count) {
+        // This count now strictly represents vehicles that have *left* the simulation area
         this.totalVehicleCount += count;
     }
 
 
-    // --- REMOVED @Scheduled annotation ---
-    // @Scheduled(fixedRate = 50) // Run approximately 20 times per second
-    // public void runSimulationUpdate() {
-    //     this.update(); // Call the main update method
-    // }
-
-    // --- NEW: Simulation Control Methods ---
-
+    // --- Simulation Control Methods ---
     /** Starts the simulation update loop if not already running. */
     public synchronized void startSimulationLoop() {
         if (!isRunning) {
             isRunning = true;
             lastTime = System.nanoTime(); // Reset timer when starting/resuming
-            // Schedule the update task to run repeatedly
             simulationTaskFuture = scheduler.scheduleAtFixedRate(this::update, 0, UPDATE_INTERVAL_MS, TimeUnit.MILLISECONDS);
             System.out.println("Simulation loop started.");
+        } else {
+             System.out.println("Simulation loop already running.");
         }
     }
 
@@ -329,21 +403,24 @@ public class SimulationService {
                 simulationTaskFuture.cancel(false); // false = don't interrupt if running
             }
             System.out.println("Simulation loop stopped.");
+        } else {
+             System.out.println("Simulation loop already stopped.");
         }
     }
 
     /** Cleans up the scheduler when the application shuts down. */
     @PreDestroy
     public void shutdownScheduler() {
-        stopSimulationLoop(); // Ensure loop is stopped
+        stopSimulationLoop();
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdown();
             try {
-                // Wait a bit for tasks to finish
-                if (!scheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                if (!scheduler.awaitTermination(2, TimeUnit.SECONDS)) { // Increased wait time
+                    System.err.println("Scheduler did not terminate gracefully, forcing shutdown.");
                     scheduler.shutdownNow();
                 }
             } catch (InterruptedException ie) {
+                System.err.println("Scheduler shutdown interrupted.");
                 scheduler.shutdownNow();
                 Thread.currentThread().interrupt();
             }
@@ -351,38 +428,24 @@ public class SimulationService {
         }
     }
 
-    // --- Getters for State (used by Controllers later) ---
 
-    public boolean isSimulationRunning() { // NEW Getter for running state
-        return isRunning;
-    }
+    // --- Getters for State ---
+    public int getIncidentCount() { return this.incidentCount.get(); }
+    public boolean isSimulationRunning() { return isRunning; }
+    public List<TrafficSignal> getSignals() { return Collections.unmodifiableList(signals); } // Return unmodifiable view
+    public List<Road> getRoads() { return Collections.unmodifiableList(roads); } // Return unmodifiable view
+    public boolean isAutoMode() { return isAutoMode; }
+    public boolean isEmergency() { return isEmergency; }
+    public List<Violation> getViolations() { return new ArrayList<>(violations); } // Return copy
 
-    public List<TrafficSignal> getSignals() {
-        return signals;
-    }
-
-    public List<Road> getRoads() {
-        return roads;
-    }
-
-    public boolean isAutoMode() {
-        return isAutoMode;
-    }
-
-     public boolean isEmergency() {
-        return isEmergency;
-    }
-
-    public List<Violation> getViolations() {
-        // Return an immutable copy to prevent external modification
-        return new ArrayList<>(violations);
-    }
-
+     // --- getEmergencyLog now reads from map based on order ---
      public List<EmergencyEvent> getEmergencyLog() {
-        // Return an immutable copy
-        return new ArrayList<>(emergencyLog);
-    }
-
+         // Create a list from the ordered IDs, fetching from the map
+         return emergencyLogOrder.stream()
+                 .map(emergencyLogMap::get)
+                 .filter(java.util.Objects::nonNull) // Filter out potential nulls if map/list get out of sync
+                 .collect(Collectors.toList()); // Collect into a new list
+     }
 
     /**
      * Calculates and returns the current simulation statistics.
@@ -391,36 +454,35 @@ public class SimulationService {
     public Stats getStats() {
         double totalWaitTime = 0;
         int waitingVehiclesCount = 0;
-        int currentVehicleCount = 0;
-        int northCount = 0, southCount = 0, eastCount = 0, westCount = 0;
+        int currentNorth = 0, currentSouth = 0, currentEast = 0, currentWest = 0;
+        long currentTotalOnRoad = 0;
 
-        // Use synchronized block or CopyOnWriteArrayList if roads list could change
-        // For simplicity, assuming roads list is fixed after construction.
+        // Iterate safely over roads (assuming roads list doesn't change)
         for (Road road : roads) {
-             // Access vehicles safely - consider using synchronized block or concurrent list in Road
-             List<Vehicle> currentRoadVehicles = new ArrayList<>(road.getVehicles()); // Copy to avoid issues if list changes during iteration
-             currentVehicleCount += currentRoadVehicles.size();
-            switch (road.getName()) {
-                case NORTH: northCount = currentRoadVehicles.size(); break;
-                case SOUTH: southCount = currentRoadVehicles.size(); break;
-                case EAST:  eastCount = currentRoadVehicles.size(); break;
-                case WEST:  westCount = currentRoadVehicles.size(); break;
-            }
-            for (Vehicle v : currentRoadVehicles) {
-                // Check if vehicle is actually waiting at a light or behind another car
-                 if (!v.isMoving()) { // Simplified: assume !isMoving means waiting
+             List<Vehicle> currentRoadVehicles = road.getVehicles(); // Gets a safe copy now
+             int roadVehicleCount = currentRoadVehicles.size();
+             currentTotalOnRoad += roadVehicleCount;
+
+             // Assign counts based on road name
+             switch (road.getName()) {
+                 case NORTH: currentNorth = roadVehicleCount; break;
+                 case SOUTH: currentSouth = roadVehicleCount; break;
+                 case EAST:  currentEast  = roadVehicleCount; break;
+                 case WEST:  currentWest  = roadVehicleCount; break;
+             }
+
+             // Calculate wait times for vehicles on this road
+             for (Vehicle v : currentRoadVehicles) {
+                 if (!v.isMoving()) {
                     totalWaitTime += v.getWaitTime();
                     waitingVehiclesCount++;
-                }
-            }
+                 }
+             }
         }
 
-        // Calculate average wait time in seconds (convert from ms if deltaTime is ms)
         double avgWaitTimeSeconds = (waitingVehiclesCount > 0) ? (totalWaitTime / waitingVehiclesCount) / 1000.0 : 0;
 
-        // Calculate average emergency response time
         double avgEmergencyResponse = 0;
-        // Use synchronized block when iterating over the synchronized list
         synchronized (emergencyResponseTimes) {
              if (!emergencyResponseTimes.isEmpty()) {
                 avgEmergencyResponse = emergencyResponseTimes.stream()
@@ -430,38 +492,40 @@ public class SimulationService {
              }
         }
 
-
-        // Get last emergency clearance time
+        // Get last *recorded* (accurate) clearance time from the log map
         Double lastEmergencyClearance = null;
-         synchronized (emergencyResponseTimes) {
-            if (!emergencyResponseTimes.isEmpty()) {
-                lastEmergencyClearance = emergencyResponseTimes.get(emergencyResponseTimes.size() - 1);
+        String lastEventId = emergencyLogOrder.peekFirst(); // Get the ID of the most recent event
+        if (lastEventId != null) {
+            EmergencyEvent lastEvent = emergencyLogMap.get(lastEventId);
+            // Only report if it has a non-zero (updated) clearance time
+            if (lastEvent != null && lastEvent.getClearanceTime() > 0.0) {
+                 lastEmergencyClearance = lastEvent.getClearanceTime();
             }
-         }
+        }
 
 
-        // Create and return Stats object
+        // totalVehicles should represent vehicles *processed*, not current count
+        long reportedTotalVehicles = this.totalVehicleCount; // Use the counter incremented on exit
+
         return new Stats(
-                this.totalVehicleCount + currentVehicleCount, // totalVehicles tracks vehicles that *have passed*
+                reportedTotalVehicles,
                 avgWaitTimeSeconds,
-                Map.of( // Using an immutable map
-                    RoadDirection.NORTH, northCount,
-                    RoadDirection.SOUTH, southCount,
-                    RoadDirection.EAST, eastCount,
-                    RoadDirection.WEST, westCount
+                Map.of( // Map still represents *current* vehicles on each road
+                    RoadDirection.NORTH, currentNorth,
+                    RoadDirection.SOUTH, currentSouth,
+                    RoadDirection.EAST, currentEast,
+                    RoadDirection.WEST, currentWest
                 ),
                 avgEmergencyResponse,
                 lastEmergencyClearance);
     }
 
-     // Inner class/record for Stats - better than defining a separate file for simple data structure
-     // Record is immutable by default (Java 16+)
-    public record Stats(
-        long totalVehicles, // Total vehicles that have passed through + currently on road
-        double avgWaitTime,
-        Map<RoadDirection, Integer> vehiclesByDirection, // Currently on road by direction
-        double avgEmergencyResponse,
-        Double lastEmergencyClearance // Use Double for nullability
+     // Inner record for Stats
+     public record Stats(
+        long totalVehicles, // Total vehicles that have passed *through* simulation
+        double avgWaitTime, // Average wait time for *currently* waiting vehicles
+        Map<RoadDirection, Integer> vehiclesByDirection, // *Currently* on road by direction
+        double avgEmergencyResponse, // Average of *completed* emergency clearances
+        Double lastEmergencyClearance // Last *completed* emergency clearance time
     ) {}
-
 }

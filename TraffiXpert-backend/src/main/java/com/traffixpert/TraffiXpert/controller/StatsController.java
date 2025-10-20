@@ -2,10 +2,13 @@ package com.traffixpert.TraffiXpert.controller;
 
 import com.traffixpert.TraffiXpert.service.SimulationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity; // Import ResponseEntity
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map; // Import Map
 
 @RestController
 @RequestMapping("/api/stats") // Base path for stats endpoints
@@ -26,7 +29,18 @@ public class StatsController {
      */
     @GetMapping
     public SimulationService.Stats getCurrentStats() {
-        // Directly return the Stats record obtained from the service
         return simulationService.getStats();
+    }
+
+    // --- NEW: Endpoint for Incident Count ---
+    /**
+     * Endpoint to get the current incident count.
+     * Accessed via GET request to /api/stats/incidents
+     * @return ResponseEntity containing the incident count.
+     */
+    @GetMapping("/incidents")
+    public ResponseEntity<Map<String, Integer>> getIncidentCount() {
+        int count = simulationService.getIncidentCount();
+        return ResponseEntity.ok(Map.of("incidentCount", count));
     }
 }

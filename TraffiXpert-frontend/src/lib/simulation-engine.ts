@@ -2,22 +2,12 @@
 // These define the structure/shape of data used by the frontend,
 // often matching the data received from the backend API.
 
+// --- UPDATED to UPPERCASE ---
 export type SignalState = "GREEN" | "YELLOW" | "RED";
-
-// Note: Backend uses uppercase enums (NORMAL, EMERGENCY).
-// Frontend components might need to handle lowercase ('normal', 'emergency')
-// if that's preferred for display or was used previously.
-// Keeping original lowercase for now based on provided code.
-export type VehicleType = "normal" | "emergency";
-
-// Note: Backend uses uppercase enums (BLUE, RED, etc.).
-// Frontend components (like LiveTrafficMap) have been updated to use uppercase.
-// Keeping original lowercase for now based on provided code.
-export type VehicleColor = 'blue' | 'red' | 'purple' | 'yellow' | 'indigo' | 'pink' | 'green' | 'white';
-
-// Note: Backend uses uppercase enums (STRAIGHT, LEFT, RIGHT).
-// Keeping original lowercase for now based on provided code.
-export type TurnDirection = "straight" | "left" | "right";
+export type VehicleType = "NORMAL" | "EMERGENCY";
+export type VehicleColor = 'BLUE' | 'RED' | 'PURPLE' | 'YELLOW' | 'INDIGO' | 'PINK' | 'GREEN' | 'WHITE';
+export type TurnDirection = "STRAIGHT" | "LEFT" | "RIGHT";
+// --- End Update ---
 
 
 // --- Interface Definitions ---
@@ -55,8 +45,10 @@ export interface Vehicle {
   width: number;
   height: number;
   angle: number;
+  // --- UPDATED to UPPERCASE ---
   color: 'BLUE' | 'RED' | 'PURPLE' | 'YELLOW' | 'INDIGO' | 'PINK' | 'GREEN' | 'WHITE'; // Match backend Enum names
   type: 'NORMAL' | 'EMERGENCY'; // Match backend Enum names
+  // --- End Update ---
   // Other properties like speed, waitTime, turn are managed by backend
   // and might not be needed directly by all frontend components. Add if required.
 }
