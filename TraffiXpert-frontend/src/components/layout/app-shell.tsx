@@ -27,7 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarHeader>
           <Link href="/" className="flex items-center gap-2" aria-label="Home">
             <Icons.logo className="w-8 h-8 text-primary" />
-            <span className="text-xl font-headline font-semibold group-data-[collapsible=icon]:hidden">VerdantFlow</span>
+            <span className="text-xl font-headline font-semibold group-data-[collapsible=icon]:hidden">TraffiXpert</span>
           </Link>
         </SidebarHeader>
         <SidebarContent>
@@ -41,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Avatar>
             <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                 <span className="font-medium text-sm truncate">Admin User</span>
-                <span className="text-xs text-muted-foreground truncate">admin@verdant.flow</span>
+                <span className="text-xs text-muted-foreground truncate">admin@TraffiXpert.com</span>
             </div>
             <Button asChild variant="ghost" size="icon" className="ml-auto group-data-[collapsible=icon]:ml-0">
                 <Link href="/login">
