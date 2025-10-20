@@ -95,7 +95,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="text" // Changed from email to text
-                  placeholder="user" // Default username for dev
+                  placeholder="User" // Default username for dev
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -107,6 +107,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  placeholder="Password" // Default password for dev
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

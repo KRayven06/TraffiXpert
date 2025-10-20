@@ -1,11 +1,12 @@
+// File: TraffiXpert-frontend/src/app/layout.tsx
 import type { Metadata } from 'next';
 import './globals.css';
-import { AppShell } from '@/components/layout/app-shell';
+// Removed AppShell import
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'VerdantFlow',
+  title: 'VerdantFlow', // Or TraffiXpert
   description: 'An advanced traffic management system.',
 };
 
@@ -22,10 +23,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
+        {/* ThemeProvider remains, AppShell is removed */}
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <AppShell>
             {children}
-            </AppShell>
             <Toaster />
         </ThemeProvider>
       </body>
