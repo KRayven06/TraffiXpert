@@ -1,0 +1,40 @@
+{
+  "placeholderImages": [
+    {
+      "id": "user-avatar",
+      "description": "User avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2MDczMTA5M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "camera-1",
+      "description": "Traffic camera feed from intersection north",
+      "imageUrl": "https://images.unsplash.com/photo-1568044939799-1e8010389394?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx0cmFmZmljJTIwcm9hZHxlbnwwfHx8fDE3NjA3Nzc5ODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "traffic road"
+    },
+    {
+      "id": "camera-2",
+      "description": "Traffic camera feed from intersection south",
+      "imageUrl": "https://images.unsplash.com/photo-1572401611152-cf63d874b019?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjYXIlMjByb2FkfGVufDB8fHx8MTc2MDc3MTI2M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car road"
+    },
+    {
+      "id": "camera-3",
+      "description": "Traffic camera feed from intersection east",
+      "imageUrl": "https://images.unsplash.com/photo-1711246879399-590ecf994b28?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjaXR5JTIwdHJhZmZpY3xlbnwwfHx8fDE3NjA3Nzc5ODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "city traffic"
+    },
+    {
+      "id": "camera-4",
+      "description": "Traffic camera feed from intersection west",
+      "imageUrl": "https://images.unsplash.com/photo-1640328441917-6e8c1245791a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxyb2FkJTIwaGlnaHdheXxlbnwwfHx8fDE3NjA3MzQ2MDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "road highway"
+    },
+    {
+      "id": "violation-red-light",
+      "description": "Car running a red light",
+      "imageUrl": "https://images.unsplash.com/photo-1675012705945-76cca223c73d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjYXIlMjByZWQlMjBsaWdodHxlbnwwfHx8fDE3NjA3Nzc5ODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "car red light"
+    }
+  ]
+}
