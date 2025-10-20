@@ -3,7 +3,6 @@ import './globals.css';
 import { AppShell } from '@/components/layout/app-shell';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
-import { SimulationProvider } from '@/context/SimulationContext';
 
 export const metadata: Metadata = {
   title: 'VerdantFlow',
@@ -24,12 +23,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <SimulationProvider>
             <AppShell>
             {children}
             </AppShell>
             <Toaster />
-          </SimulationProvider>
         </ThemeProvider>
       </body>
     </html>
