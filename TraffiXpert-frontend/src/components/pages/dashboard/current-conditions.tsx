@@ -111,7 +111,8 @@ export function CurrentConditions() {
                     <Waves className="h-6 w-6 text-blue-500" />
                     <div>
                         <p className="font-semibold">Traffic Density</p>
-                        <p className="text-muted-foreground">{getTrafficDensity()}</p>
+                        {/* CORRECTED: Changed <p> to <span> */}
+                        <span className="text-muted-foreground">{getTrafficDensity()}</span>
                     </div>
                 </div>
                 {/* Current Time (client-side only) */}
