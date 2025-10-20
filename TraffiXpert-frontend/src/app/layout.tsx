@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'VerdantFlow', // Or TraffiXpert
+  title: 'TraffiXpert', // Or TraffiXpert
   description: 'An advanced traffic management system.',
 };
 
