@@ -71,7 +71,6 @@ export function LiveTrafficStats() {
     <Card>
       <CardHeader>
         <CardTitle className="font-headline text-lg">Live Traffic Statistics</CardTitle>
-        <CardDescription>Vehicles detected per direction.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[200px]">

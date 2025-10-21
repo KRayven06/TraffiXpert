@@ -1,3 +1,4 @@
+// File: krayven06/traffixpert/TraffiXpert-3ff5689eff3414f7133dca39e2e9afd8b7261a64/TraffiXpert-frontend/src/components/pages/dashboard/live-traffic-map.tsx
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -259,6 +260,9 @@ export function LiveTrafficMap() {
   const signals = currentSignals;
   const vehicles = interpolatedVehicles;
 
+  // INCREASED OFFSET VALUE for signal positioning
+  const signalOffset = '65px'; // Changed from 45px to 65px
+
   return (
     <Card className="overflow-hidden h-full">
       <CardContent className="p-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800 h-full">
@@ -271,20 +275,25 @@ export function LiveTrafficMap() {
           <div className="absolute left-1/2 top-0 h-[calc(50%-40px)] w-0.5 border-l-4 border-dashed border-gray-500" />
           <div className="absolute left-1/2 bottom-0 h-[calc(50%-40px)] w-0.5 border-l-4 border-dashed border-gray-500" />
 
-          {/* Traffic Lights (use currentSignals) */}
+          {/* Traffic Lights (use currentSignals) - INCREASED OFFSET */}
+          {/* Signal indices based on SimulationService: 0:N, 1:S, 2:E, 3:W */}
           {signals.length >= 4 && (
               <>
-                <div className="absolute top-[calc(50%-60px)] left-[calc(50%-60px)] -translate-x-1/2 -translate-y-1/2">
-                    <TrafficLight color={LightColorMap[signals[0].state]} rotation={0} />
+                {/* Northbound Traffic Light (Signal 0): Positioned bottom-right of intersection, facing South */}
+                <div className="absolute top-[calc(50%+var(--offset))] left-[calc(50%+var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
+                    <TrafficLight color={LightColorMap[signals[0].state]} rotation={180} />
                 </div>
-                 <div className="absolute top-[calc(50%+60px)] left-[calc(50%-60px)] -translate-x-1/2 -translate-y-1/2">
-                    <TrafficLight color={LightColorMap[signals[1].state]} rotation={90} />
+                 {/* Westbound Traffic Light (Signal 3): Positioned top-right of intersection, facing West */}
+                 <div className="absolute top-[calc(50%-var(--offset))] left-[calc(50%+var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
+                    <TrafficLight color={LightColorMap[signals[3].state]} rotation={90} />
                 </div>
-                 <div className="absolute top-[calc(50%+60px)] left-[calc(50%+60px)] -translate-x-1/2 -translate-y-1/2">
-                    <TrafficLight color={LightColorMap[signals[2].state]} rotation={-90} />
+                 {/* Southbound Traffic Light (Signal 1): Positioned top-left of intersection, facing North */}
+                 <div className="absolute top-[calc(50%-var(--offset))] left-[calc(50%-var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
+                    <TrafficLight color={LightColorMap[signals[1].state]} rotation={0} />
                  </div>
-                 <div className="absolute top-[calc(50%-60px)] left-[calc(50%+60px)] -translate-x-1/2 -translate-y-1/2">
-                    <TrafficLight color={LightColorMap[signals[3].state]} rotation={180} />
+                 {/* Eastbound Traffic Light (Signal 2): Positioned bottom-left of intersection, facing East */}
+                 <div className="absolute top-[calc(50%+var(--offset))] left-[calc(50%-var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
+                    <TrafficLight color={LightColorMap[signals[2].state]} rotation={-90} />
                  </div>
               </>
           )}

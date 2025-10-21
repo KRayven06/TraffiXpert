@@ -1,3 +1,4 @@
+// File: krayven06/traffixpert/TraffiXpert-3ff5689eff3414f7133dca39e2e9afd8b7261a64/TraffiXpert-backend/src/main/java/com/traffixpert/TraffiXpert/model/Vehicle.java
 package com.traffixpert.TraffiXpert.model; // Adjust package name if needed
 
 import com.traffixpert.TraffiXpert.service.SimulationService; // Placeholder - We'll create this later
@@ -32,6 +33,7 @@ public class Vehicle {
     private VehicleType type;
     private double waitTime;
     private TurnDirection turn;
+    // --- Reverted Turning Variables ---
     private boolean isTurning = false;
     private double turnAngle = 0; // Current angle during turn (might not be needed if using accumulatedTurn)
     private double initialAngle;
@@ -52,7 +54,7 @@ public class Vehicle {
         this.x = road.getStartX();
         this.y = road.getStartY();
         this.angle = road.getAngle();
-        this.initialAngle = road.getAngle();
+        this.initialAngle = road.getAngle(); // Store initial angle
 
         // Speed based on type
         if (type == VehicleType.EMERGENCY) {
@@ -68,7 +70,7 @@ public class Vehicle {
         this.isMoving = true;
         this.waitTime = 0;
 
-        // Determine turn direction based on random number
+        // Determine turn direction based on random number (using original probabilities)
         double rand = ThreadLocalRandom.current().nextDouble();
         if (rand < 0.5) this.turn = TurnDirection.STRAIGHT;
         else if (rand < 0.75) this.turn = TurnDirection.LEFT;
@@ -78,6 +80,7 @@ public class Vehicle {
 
     /**
      * Handles the logic for turning the vehicle within the intersection.
+     * --- REVERTED to user's provided version ---
      * @param deltaTime Time elapsed since last update.
      */
     private void handleTurning(double deltaTime) {
@@ -102,9 +105,9 @@ public class Vehicle {
 
         // Apply turn if currently turning
         if (this.isTurning) {
-            final double turnRate = 2.0; // degrees per frame/update tick (adjust based on deltaTime scale)
+            final double turnRate = 2.0; // degrees per frame/update tick (adjust based on deltaTime scale) - REVERTED
             int turnDirectionMultiplier = this.totalTurnAngle > 0 ? 1 : -1;
-            // Adjust turn amount based on deltaTime. The factor 0.1 was used in TS, might need tuning.
+            // Adjust turn amount based on deltaTime. The factor 0.1 was used in TS, might need tuning. - REVERTED
             double turnAmount = turnDirectionMultiplier * turnRate * deltaTime * 0.1;
 
             if (Math.abs(this.accumulatedTurn) < Math.abs(this.totalTurnAngle)) {
@@ -136,6 +139,7 @@ public class Vehicle {
         for (Vehicle frontVehicle : vehiclesInFront) {
             double distance = Math.hypot(this.x - frontVehicle.getX(), this.y - frontVehicle.getY());
             // Stop if too close to the vehicle in front (using 1.5 times height as buffer)
+            // Using original simpler distance check
             if (distance < this.height * 1.5) {
                 isStoppedByCar = true;
                 break;
@@ -146,71 +150,73 @@ public class Vehicle {
         double potentialX = this.x + Math.sin(Math.toRadians(this.angle)) * this.speed * deltaTime;
         double potentialY = this.y - Math.cos(Math.toRadians(this.angle)) * this.speed * deltaTime;
 
-        // Check if approaching the stop line
+        // --- Stop Line Checks (same as before) ---
         boolean isApproachingStopLine = false;
         switch (direction) {
-            case SOUTH: // Moving South (from North road)
-                isApproachingStopLine = this.y < stopPosition && potentialY >= stopPosition;
-                break;
-            case NORTH: // Moving North (from South road)
-                isApproachingStopLine = this.y > stopPosition && potentialY <= stopPosition;
-                break;
-            case WEST: // Moving West (from East road)
-                isApproachingStopLine = this.x > stopPosition && potentialX <= stopPosition;
-                break;
-            case EAST: // Moving East (from West road)
-                isApproachingStopLine = this.x < stopPosition && potentialX >= stopPosition;
-                break;
+            case SOUTH: isApproachingStopLine = this.y < stopPosition && potentialY >= stopPosition; break;
+            case NORTH: isApproachingStopLine = this.y > stopPosition && potentialY <= stopPosition; break;
+            case WEST:  isApproachingStopLine = this.x > stopPosition && potentialX <= stopPosition; break;
+            case EAST:  isApproachingStopLine = this.x < stopPosition && potentialX >= stopPosition; break;
         }
-
-
-        // Check if past the stop line
         boolean hasPassedStopLine = false;
          switch (direction) {
-            case SOUTH: hasPassedStopLine = this.y >= stopPosition; break; // from North
-            case NORTH: hasPassedStopLine = this.y <= stopPosition; break; // from South
-            case WEST:  hasPassedStopLine = this.x <= stopPosition; break; // from East
-            case EAST:  hasPassedStopLine = this.x >= stopPosition; break; // from West
+            case SOUTH: hasPassedStopLine = this.y >= stopPosition; break;
+            case NORTH: hasPassedStopLine = this.y <= stopPosition; break;
+            case WEST:  hasPassedStopLine = this.x <= stopPosition; break;
+            case EAST:  hasPassedStopLine = this.x >= stopPosition; break;
         }
+        // --- End Stop Line Checks ---
 
+        // --- Determine Movement State (Stop/Go/Violate - KEEPING LATEST WORKING VERSION) ---
+         boolean shouldViolate = false;
+         // Check conditions for potentially violating a RED light
+         if (!hasPassedStopLine && isApproachingStopLine && signal == SignalState.RED && this.type == VehicleType.NORMAL) {
+             if (ThreadLocalRandom.current().nextDouble() < 0.01) { // 1% violation chance
+                  shouldViolate = true;
+                  SimulationService simService = this.road.getSimulation();
+                  if (simService != null) {
+                      System.out.println("VIOLATION TRIGGERED for vehicle " + this.getId() + " on " + this.road.getName().name());
+                      simService.addViolation(this.road.getName().name());
+                  }
+             }
+         }
 
-        // Determine if the vehicle should stop
-        if (!hasPassedStopLine && isApproachingStopLine && signal != SignalState.GREEN && this.type != VehicleType.EMERGENCY) {
-            this.isMoving = false;
-        } else if (isStoppedByCar) {
+         // Decide if the car should be moving based on all factors
+         if (isStoppedByCar) {
+             this.isMoving = false; // Stop if too close to car in front
+         } else if (!hasPassedStopLine && isApproachingStopLine && signal != SignalState.GREEN && this.type != VehicleType.EMERGENCY && !shouldViolate) {
+              // Stop if approaching Red/Yellow, not emergency, AND not violating
              this.isMoving = false;
-        } else {
-            // Check for red light violation (small random chance for normal vehicles)
-             if (!hasPassedStopLine && isApproachingStopLine && signal == SignalState.RED && this.type == VehicleType.NORMAL && ThreadLocalRandom.current().nextDouble() < 0.0005) {
-                // Get simulation instance (we need to figure out the best way to access it - dependency injection later)
-                SimulationService simService = this.road.getSimulation(); // Assuming Road holds a reference
-                if (simService != null) {
-                    simService.addViolation(this.road.getName().name()); // Use enum name
-                }
-                this.isMoving = true; // Run the red light
-            } else {
-                this.isMoving = true;
-            }
-        }
+         } else {
+             // Otherwise, move (Green light, past stop line, emergency, OR violating)
+             this.isMoving = true;
+         }
+        // --- End Movement State ---
 
-        // Update wait time
+        // --- Update Wait Time ---
         if (!this.isMoving) {
             this.waitTime += deltaTime;
         } else {
             this.waitTime = 0; // Reset wait time when moving
         }
+        // --- End Wait Time ---
 
-        // Update position if moving
+        // --- Update Position ---
+        // --- REVERTED to original linear movement logic ---
         if (this.isMoving) {
             // Need to convert angle to radians for Math.sin/cos
             this.x = potentialX;
             this.y = potentialY;
         }
+        // --- End Update Position ---
 
+        // --- Handle Turning (Visual Angle) ---
+        // --- REVERTED to call original handleTurning ---
         // Handle turning only if past the stop line
         if (hasPassedStopLine) {
             handleTurning(deltaTime);
         }
+        // --- End Handle Turning ---
     }
 
 

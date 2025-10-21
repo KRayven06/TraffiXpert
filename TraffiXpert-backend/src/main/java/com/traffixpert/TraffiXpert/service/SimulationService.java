@@ -49,7 +49,7 @@ public class SimulationService {
     private final List<Double> emergencyResponseTimes = Collections.synchronizedList(new ArrayList<>());
     private long totalVehicleCount = 0; // Cumulative count of vehicles that have passed
 
-    private static final int MAX_LOG_SIZE = 10;
+    private static final int MAX_LOG_SIZE = 1000;
     private static final AtomicLong violationIdCounter = new AtomicLong(0);
     private static final AtomicLong emergencyIdCounter = new AtomicLong(0);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
