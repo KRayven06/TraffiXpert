@@ -1,3 +1,4 @@
+// File: TraffiXpert-frontend/src/app/login/page.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -5,17 +6,17 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter, // Added CardFooter
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react"; // Added useState
-import { Loader2 } from "lucide-react"; // Added Loader2
-import { useRouter } from "next/navigation"; // Added useRouter for redirection
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Added Alert components
-import { AlertCircle } from "lucide-react"; // Added AlertCircle icon
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 // Base URL for your Spring Boot backend API
 const API_BASE_URL = 'http://localhost:8080/api';
@@ -28,12 +29,11 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleLogin = async (event: React.FormEvent) => {
-    event.preventDefault(); // Prevent default form submission
+    event.preventDefault();
     setIsLoading(true);
     setError(null);
 
     try {
-      // TODO: Create POST /api/auth/login endpoint in Spring Boot backend
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -46,27 +46,33 @@ export default function LoginPage() {
 
       if (!response.ok) {
         let errorMessage = "Login failed. Please check your credentials.";
-        // Try to parse error message from backend if available
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
         } catch (e) { /* Ignore if response is not JSON */ }
-
         throw new Error(errorMessage);
       }
 
       // --- Handle Successful Login ---
-      // The backend might return a token (JWT) or set a session cookie.
-      // For now, let's assume success means we can redirect.
-      // We might need to store token/session info here later.
-      console.log("Login successful!"); // Placeholder
+      const loginData = await response.json(); // Assuming backend might return data like a token
+
+      // !!! IMPORTANT: Store authentication status !!!
+      // Example: Store a dummy token in localStorage. Replace with actual token/session handling.
+      // If your backend returns a JWT token in loginData.token:
+      // localStorage.setItem('authToken', loginData.token);
+      // For this example, we'll just set a simple flag:
+      localStorage.setItem('authToken', 'dummy-token-replace-me'); // Replace 'authToken' and value accordingly
+
+      console.log("Login successful!", loginData); // Log success and any data received
 
       // Redirect to the dashboard page upon successful login
-      router.push('/');
+      router.push('/'); // Use push to navigate normally
 
-    } catch (err: any) { // Catch specific error type
+    } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "An unexpected error occurred.");
+      // Clear any potentially stored token on login failure
+      localStorage.removeItem('authToken'); // Make sure invalid state is cleared
     } finally {
       setIsLoading(false);
     }
@@ -76,14 +82,15 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-headline">Login</CardTitle>
+          <CardTitle className="text-2xl font-headline">Admin Login</CardTitle>
           <CardDescription>
             Enter your credentials to access the dashboard.
+            <br />
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}> {/* Use form element with onSubmit */}
+        <form onSubmit={handleLogin}>
             <CardContent className="grid gap-4">
-             {error && ( // Display error message if login failed
+             {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Login Failed</AlertTitle>
@@ -91,15 +98,16 @@ export default function LoginPage() {
                 </Alert>
               )}
               <div className="grid gap-2">
-                <Label htmlFor="email">Username</Label> {/* Label changed to Username */}
+                <Label htmlFor="email">Username</Label>
                 <Input
                   id="email"
-                  type="text" // Changed from email to text
+                  type="text"
                   placeholder="User" // Default username for dev
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
+                  autoComplete="username"
                 />
               </div>
               <div className="grid gap-2">
@@ -112,10 +120,11 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
               </div>
             </CardContent>
-            <CardFooter> {/* Use CardFooter for the button */}
+            <CardFooter>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {isLoading ? "Signing In..." : "Sign In"}
