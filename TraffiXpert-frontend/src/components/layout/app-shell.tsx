@@ -25,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar collapsible="icon">
         <SidebarHeader>
-          <Link href="/" className="flex items-center gap-2" aria-label="Home">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="Home">
             <Icons.logo className="w-8 h-8 text-primary" />
             <span className="text-xl font-headline font-semibold group-data-[collapsible=icon]:hidden">TraffiXpert</span>
           </Link>
@@ -41,9 +41,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Avatar>
             <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                 <span className="font-medium text-sm truncate">Admin User</span>
-                <span className="text-xs text-muted-foreground truncate">admin@TraffiXpert.com</span>
+                <span className="text-xs text-muted-foreground truncate">admin@traffixpert.com</span>
             </div>
-            <Button asChild variant="ghost" size="icon" className="ml-auto group-data-[collapsible=icon]:ml-0">
+            <Button asChild variant="ghost" size="icon" className="ml-auto group-data-[collapsible=icon]:ml-0 rounded-full hover:bg-sidebar-accent">
                 <Link href="/login">
                     <LogOut />
                     <span className="sr-only">Log Out</span>
@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <Header />
-        <main className="flex-1 p-4 lg:p-6 bg-background overflow-auto">
+        <main className="flex-1 p-6 lg:p-8 bg-background overflow-auto">
             {children}
         </main>
       </SidebarInset>

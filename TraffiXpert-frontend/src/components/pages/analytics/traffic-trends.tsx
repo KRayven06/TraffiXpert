@@ -80,7 +80,7 @@ export function TrafficTrends() {
 
     fetchData(); // Initial fetch
     // Fetch stats every 2 seconds for trends
-    const intervalId = setInterval(fetchData, 2000); // 2000ms = 2 seconds
+    const intervalId = setInterval(fetchData, 1000); // 2000ms = 2 seconds
 
     return () => clearInterval(intervalId); // Cleanup
   }, [isLoading]); // Rerun effect only if isLoading changes

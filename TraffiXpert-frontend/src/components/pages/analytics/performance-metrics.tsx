@@ -64,7 +64,7 @@ export function PerformanceMetrics() {
 
     fetchData(); // Initial fetch
     // Fetch stats periodically, e.g., every 5 seconds
-    const intervalId = setInterval(fetchData, 5000); // 5000ms = 5 seconds
+    const intervalId = setInterval(fetchData, 1000); // 5000ms = 5 seconds
 
     return () => clearInterval(intervalId); // Cleanup
   }, [isLoading]);

@@ -54,7 +54,7 @@ export function LiveTrafficStats() {
 
     fetchData(); // Initial fetch
     // Fetch stats less frequently than the map, e.g., every 2 seconds
-    const intervalId = setInterval(fetchData, 1000); // 2000ms = 2 seconds
+    const intervalId = setInterval(fetchData, 100); // 2000ms = 2 seconds
 
     return () => clearInterval(intervalId); // Cleanup
   }, [isLoading]);
