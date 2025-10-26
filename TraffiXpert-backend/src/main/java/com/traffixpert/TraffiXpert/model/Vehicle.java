@@ -1,4 +1,3 @@
-// File: krayven06/traffixpert/TraffiXpert-d86fc4960adf4b96fd86bdc678e4c92e1a4188de/TraffiXpert-backend/src/main/java/com/traffixpert/TraffiXpert/model/Vehicle.java
 package com.traffixpert.TraffiXpert.model; // Adjust package name if needed
 
 import com.traffixpert.TraffiXpert.service.SimulationService; // Placeholder - We'll create this later
@@ -36,6 +35,7 @@ public class Vehicle {
     // --- NEW: Simplified Turning State ---
     private boolean hasPassedStopLine = false;
     private boolean hasTurned = false; // Flag to ensure turn happens only once
+    private String emergencyType; // Optional: Store specific type if needed
 
 
     /**
@@ -51,12 +51,13 @@ public class Vehicle {
         this.x = road.getStartX();
         this.y = road.getStartY();
         this.angle = road.getAngle();
-        // Removed initialAngle as it's not needed for instant turns
 
         // Speed based on type
         if (type == VehicleType.EMERGENCY) {
             this.speed = 0.1;
+            // Default color/type if specific type isn't provided via other constructor
             this.color = VehicleColor.WHITE;
+            this.emergencyType = "Ambulance";
         } else {
             // Equivalent to 0.05 + Math.random() * 0.02
             this.speed = 0.05 + ThreadLocalRandom.current().nextDouble(0.02);
@@ -78,7 +79,26 @@ public class Vehicle {
         this.hasTurned = false;
     }
 
-    // --- REMOVED handleTurning method ---
+     // *** Overloaded constructor that takes the specific emergency type ***
+     public Vehicle(Road road, VehicleType type, String emergencyType) {
+         this(road, type); // Call the main constructor
+         if (type == VehicleType.EMERGENCY) {
+             this.emergencyType = emergencyType;
+             switch (emergencyType) {
+                 case "Police Car":
+                     // TODO: Add POLICE_BLUE to VehicleColor enum if needed
+                     this.color = VehicleColor.BLUE; // Example
+                     break;
+                 case "Firetruck":
+                     this.color = VehicleColor.RED; // Example
+                     break;
+                 case "Ambulance":
+                 default:
+                     this.color = VehicleColor.WHITE;
+                     break;
+             }
+         }
+     }
 
 
     /**
@@ -222,7 +242,7 @@ public class Vehicle {
     public VehicleType getType() { return type; }
     public double getWaitTime() { return waitTime; }
     public TurnDirection getTurn() { return turn; }
-    // Removed isTurning getter
+    public String getEmergencyType() { return emergencyType; } // Getter for specific type
 
     // --- Setters (Add if needed, e.g., for position adjustments or state changes) ---
      public void setX(double x) { this.x = x; }

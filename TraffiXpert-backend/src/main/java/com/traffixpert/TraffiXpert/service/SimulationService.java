@@ -1,7 +1,6 @@
 package com.traffixpert.TraffiXpert.service; // Adjust package name if needed
 
 import com.traffixpert.TraffiXpert.model.*; // Import model classes
-// import org.springframework.scheduling.annotation.Scheduled; // REMOVE or COMMENT OUT this import
 import org.springframework.stereotype.Service; // Import Spring Service annotation
 
 import jakarta.annotation.PostConstruct; // Import for PostConstruct
@@ -18,6 +17,7 @@ import java.util.concurrent.*; // Import concurrent package
 import java.util.concurrent.atomic.AtomicInteger; // Import AtomicInteger
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors; // Import Collectors
+import java.util.Random; // Add Random import
 
 @Service // Mark this as a Spring Service component
 public class SimulationService {
@@ -57,6 +57,10 @@ public class SimulationService {
     // --- NEW: Tracking current emergency vehicle ---
     private volatile Long currentEmergencyVehicleId = null; // ID of the active emergency vehicle
     private volatile Instant currentEmergencyStartTime = null; // Time it was spawned
+
+    // --- NEW: Emergency types and randomizer ---
+    private static final String[] EMERGENCY_TYPES = {"Ambulance", "Firetruck", "Police Car"}; // Add types
+    private final Random random = new Random(); // Add Random instance
 
 
     // Enum for AutoModeState, mirroring TS logic
@@ -257,21 +261,32 @@ public class SimulationService {
         this.emergencyTimer = 15000; // Max duration / fallback timer
         this.incidentCount.incrementAndGet();
 
+        // *** MODIFIED: Select random emergency type ***
+        String selectedEmergencyType = EMERGENCY_TYPES[random.nextInt(EMERGENCY_TYPES.length)];
+
         // Spawn emergency vehicle
         int emergencyRoadIndex = ThreadLocalRandom.current().nextInt(this.roads.size());
         Road emergencyRoad = this.roads.get(emergencyRoadIndex);
-        Vehicle emergencyVehicle = new Vehicle(emergencyRoad, VehicleType.EMERGENCY);
+
+        // *** Use the constructor that accepts the type ***
+        Vehicle emergencyVehicle = new Vehicle(emergencyRoad, VehicleType.EMERGENCY, selectedEmergencyType);
+
         emergencyRoad.addVehicleToFront(emergencyVehicle);
 
         // Store emergency vehicle details
         this.currentEmergencyVehicleId = emergencyVehicle.getId();
         this.currentEmergencyStartTime = Instant.now();
-        System.out.println("Emergency Triggered. Vehicle ID: " + this.currentEmergencyVehicleId + " on road " + emergencyRoad.getName() + " at " + this.currentEmergencyStartTime);
+        System.out.println("Emergency Triggered. Type: " + selectedEmergencyType + ". Vehicle ID: " + this.currentEmergencyVehicleId + " on road " + emergencyRoad.getName() + " at " + this.currentEmergencyStartTime);
 
-
-        // Set signals
+        // Set signals to clear path (Green for entry and opposing for straight through)
         for (int i = 0; i < this.signals.size(); i++) {
-            this.signals.get(i).setState(i == emergencyRoadIndex ? SignalState.GREEN : SignalState.RED);
+            boolean isEmergencyRoad = i == emergencyRoadIndex;
+            boolean isOpposingRoad = (emergencyRoad.getName() == RoadDirection.NORTH && i == 1) || // North -> South
+                                     (emergencyRoad.getName() == RoadDirection.SOUTH && i == 0) || // South -> North
+                                     (emergencyRoad.getName() == RoadDirection.EAST && i == 3) ||  // East -> West
+                                     (emergencyRoad.getName() == RoadDirection.WEST && i == 2);   // West -> East
+
+            this.signals.get(i).setState((isEmergencyRoad || isOpposingRoad) ? SignalState.GREEN : SignalState.RED);
         }
 
         // Log initial event (clearance time TBD)
@@ -279,10 +294,11 @@ public class SimulationService {
         EmergencyEvent event = new EmergencyEvent(
             eventId,
             LocalTime.now(),
-            "Ambulance", // Assuming type
+            // *** MODIFIED: Use selected type in log ***
+            selectedEmergencyType,
             0.0 // Clearance time initially 0, will be updated
         );
-        // Add to map and ordered list
+        // Add to map and ordered list (logic remains the same)
         emergencyLogMap.put(eventId, event);
         emergencyLogOrder.addFirst(eventId);
         // Trim logs if necessary
@@ -294,6 +310,7 @@ public class SimulationService {
         }
         // Don't add to response times yet
     }
+
 
     /**
      * Called by Road when a specific vehicle exits.

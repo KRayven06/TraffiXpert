@@ -1,12 +1,17 @@
-
 export type SignalState = "GREEN" | "YELLOW" | "RED";
 export type VehicleType = "normal" | "emergency";
+// Added specific emergency types for potential use
+export type EmergencyVehicleType = 'Ambulance' | 'Firetruck' | 'Police Car';
 export type VehicleColor = 'blue' | 'red' | 'purple' | 'yellow' | 'indigo' | 'pink' | 'green' | 'white';
 export type TurnDirection = "straight" | "left" | "right";
 
 
 const VEHICLE_DIMENSIONS = { width: 10, height: 16 };
+// ADD different emergency types
+const emergencyTypes: EmergencyVehicleType[] = ['Ambulance', 'Firetruck', 'Police Car'];
+// Optional: Add new colors if needed, e.g., POLICE_BLUE
 const carColors: VehicleColor[] = ['blue', 'red', 'purple', 'yellow', 'indigo', 'pink', 'green'];
+
 
 export interface Violation {
   id: string;
@@ -19,7 +24,7 @@ export interface Violation {
 export interface EmergencyEvent {
     id: string;
     time: string;
-    type: string;
+    type: EmergencyVehicleType; // Use specific type
     clearanceTime: number;
 }
 
@@ -70,12 +75,13 @@ export class Vehicle {
     type: VehicleType;
     waitTime: number;
     turn: TurnDirection;
-    
+    emergencyType?: EmergencyVehicleType; // Store specific emergency type
+
     private hasPassedStopLine: boolean = false;
     private hasTurned: boolean = false;
 
 
-    constructor(road: Road, type: VehicleType = 'normal') {
+    constructor(road: Road, type: VehicleType = 'normal', emergencyType?: EmergencyVehicleType) { // Add optional emergencyType
         this.id = vehicleIdCounter++;
         this.road = road;
         this.x = road.startX;
@@ -83,7 +89,26 @@ export class Vehicle {
         this.angle = road.angle;
         this.speed = type === 'emergency' ? 0.1 : 0.05 + Math.random() * 0.02;
         this.isMoving = true;
-        this.color = type === 'emergency' ? 'white' : carColors[Math.floor(Math.random() * carColors.length)];
+
+        // Assign color based on emergencyType if provided
+        if (type === 'emergency') {
+            this.emergencyType = emergencyType; // Store the type
+            switch (emergencyType) {
+                case 'Police Car':
+                    // Assign a distinct color for police, ensure 'blue' is handled uniquely in frontend map if needed
+                    this.color = 'blue'; // Example: Police blue
+                    break;
+                case 'Firetruck':
+                    this.color = 'red'; // Example: Firetruck red
+                    break;
+                case 'Ambulance':
+                default:
+                    this.color = 'white'; // Default white for Ambulance
+                    break;
+            }
+        } else {
+            this.color = carColors[Math.floor(Math.random() * carColors.length)];
+        }
         this.type = type;
         this.waitTime = 0;
 
@@ -94,10 +119,11 @@ export class Vehicle {
 
     }
 
+
     update(deltaTime: number, signal: SignalState, vehiclesInFront: Vehicle[]) {
         const stopPosition = this.road.stopLine;
         let isStoppedByCar = false;
-        
+
         for (const frontVehicle of vehiclesInFront) {
             const distance = Math.hypot(this.x - frontVehicle.x, this.y - frontVehicle.y);
             if (distance < this.height * 1.5) {
@@ -105,7 +131,7 @@ export class Vehicle {
                 break;
             }
         }
-        
+
         let isAtStopLine = false;
         switch(this.road.direction) {
             case 'south': isAtStopLine = this.y >= stopPosition - this.height; break;
@@ -128,13 +154,13 @@ export class Vehicle {
         } else {
             this.isMoving = true;
         }
-        
+
         if (!this.isMoving) {
             this.waitTime += deltaTime;
         } else {
             this.waitTime = 0; // Reset wait time when moving
         }
-        
+
         // --- Mark when passed stop line ---
         if (!this.hasPassedStopLine) {
             if ((this.road.direction === 'south' && this.y >= stopPosition) ||
@@ -198,7 +224,7 @@ class Road {
         this.name = name;
         this.simulation = simulation;
         this.spawnTimer = Math.random() * 3000;
-        
+
         switch (name) {
             case 'north':
                 this.startX = 215; this.startY = -20; this.angle = 180; this.stopLine = 160; this.direction = 'south';
@@ -207,13 +233,14 @@ class Road {
                 this.startX = 175; this.startY = 420; this.angle = 0; this.stopLine = 240; this.direction = 'north';
                 break;
             case 'east':
-                this.startX = 420; this.startY = 215; this.angle = 90; this.stopLine = 240; this.direction = 'west';
+                this.startX = 420; this.startY = 215; this.angle = -90; this.stopLine = 240; this.direction = 'west'; // Corrected angle for map alignment
                 break;
             case 'west':
-                this.startX = -20; this.startY = 175; this.angle = -90; this.stopLine = 160; this.direction = 'east';
+                this.startX = -20; this.startY = 175; this.angle = 90; this.stopLine = 160; this.direction = 'east'; // Corrected angle for map alignment
                 break;
         }
     }
+
 
     update(deltaTime: number, signal: SignalState) {
         this.spawnTimer -= deltaTime;
@@ -252,7 +279,7 @@ export class Simulation {
     emergencyLog: EmergencyEvent[] = [];
     emergencyResponseTimes: number[] = [];
     totalVehicleCount: number = 0;
-    
+
     private lastTime: number;
 
     constructor() {
@@ -288,7 +315,7 @@ export class Simulation {
                 this.transitionAutoMode();
             }
         }
-        
+
         this.roads[0].update(deltaTime, this.signals[0].state); // North
         this.roads[1].update(deltaTime, this.signals[1].state); // South
         this.roads[2].update(deltaTime, this.signals[2].state); // East
@@ -344,18 +371,22 @@ export class Simulation {
     setAllSignals(state: SignalState) {
         this.signals.forEach(s => s.state = state);
     }
-    
+
     triggerEmergency() {
         if (this.isEmergency) return;
 
         this.isEmergency = true;
         this.isAutoMode = false;
         this.emergencyTimer = 15000; // 15 seconds emergency
-        
+
+        // *** MODIFIED: Select random emergency type ***
+        const selectedEmergencyType = emergencyTypes[Math.floor(Math.random() * emergencyTypes.length)];
+
         // Spawn an emergency vehicle on a random road
         const emergencyRoadIndex = Math.floor(Math.random() * this.roads.length);
         const road = this.roads[emergencyRoadIndex];
-        const emergencyVehicle = new Vehicle(road, 'emergency');
+        // *** MODIFIED: Pass selected type to Vehicle constructor ***
+        const emergencyVehicle = new Vehicle(road, 'emergency', selectedEmergencyType);
         road.vehicles.unshift(emergencyVehicle);
 
         // Clear the path for the emergency vehicle
@@ -375,21 +406,24 @@ export class Simulation {
         const startTime = Date.now();
         const checkPassed = setInterval(() => {
             const v = road.vehicles.find(v => v.id === emergencyVehicle.id);
-            const offScreen = !v || v.x < -25 || v.x > 425 || v.y < -25 || v.y > 425;
+            // Check if vehicle is off-screen using broader bounds
+            const offScreen = !v || v.x < -30 || v.x > 430 || v.y < -30 || v.y > 430;
             if(offScreen) {
                 const clearanceTime = (Date.now() - startTime) / 1000;
                 this.emergencyResponseTimes.push(clearanceTime);
                 this.emergencyLog.unshift({
                     id: `EV-${emergencyIdCounter++}`,
                     time: new Date().toLocaleTimeString(),
-                    type: 'Ambulance',
+                    // *** MODIFIED: Use selected type in log ***
+                    type: selectedEmergencyType,
                     clearanceTime
                 });
-                if(this.emergencyLog.length > 10) this.emergencyLog.pop();
+                if(this.emergencyLog.length > 10) this.emergencyLog.pop(); // Keep log size manageable
                 clearInterval(checkPassed);
             }
         }, 100);
     }
+
 
     addViolation(roadName: string) {
         this.violations.unshift({
@@ -419,7 +453,7 @@ export class Simulation {
         const lastEmergencyClearance = this.emergencyResponseTimes.length > 0 ? this.emergencyResponseTimes[this.emergencyResponseTimes.length - 1] : null;
         const avgEmergencyResponse = this.emergencyResponseTimes.length > 0 ? this.emergencyResponseTimes.reduce((a, b) => a + b, 0) / this.emergencyResponseTimes.length : 0;
         const avgWaitTime = waitingVehiclesCount > 0 ? (totalWaitTime / waitingVehiclesCount) / 1000 : 0;
-        
+
         return {
             totalVehicles: this.totalVehicleCount + vehicleCount,
             avgWaitTime,
@@ -434,5 +468,3 @@ export class Simulation {
         };
     }
 }
-
-    
