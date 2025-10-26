@@ -47,7 +47,7 @@ export function FineCollection() {
 
     fetchData(); // Initial fetch
     // Fetch violations data less frequently, e.g., every 10 seconds
-    const intervalId = setInterval(fetchData, 10000); // 10000ms = 10 seconds
+    const intervalId = setInterval(fetchData, 5000); // 10000ms = 10 seconds
 
     return () => clearInterval(intervalId); // Cleanup interval
   }, [isLoading]); // Rerun only if isLoading changes
@@ -77,7 +77,7 @@ export function FineCollection() {
           <p className="text-sm text-destructive">Error: {error}</p>
         ) : (
           <>
-            <div className="text-2xl font-bold">${totalFines.toLocaleString()}</div>
+            <div className="text-2xl font-bold">₹{totalFines.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
                 from {violationCount} violation{violationCount !== 1 ? 's' : ''} recorded
             </p>

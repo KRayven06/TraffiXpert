@@ -64,10 +64,10 @@ public class SimulationService {
     private static final String[] EMERGENCY_TYPES = {"Ambulance", "Firetruck", "Police Car"}; // Add types
     private final Random random = new Random(); // Add Random instance
 
-    // --- NEW: Define Violation Types ---
-    private static final String[] VIOLATION_TYPES = {"Red Light", "Speeding", "Illegal Lane Change", "Stop Sign"}; // Added new types
-    private static final String[] VIOLATION_FINES = {"$150", "$200", "$100", "$80"}; // Corresponding fines
-
+    // --- UPDATED: Define Violation Types and Fines in INR ---
+    // Make sure the order matches
+    private static final String[] VIOLATION_TYPES = {"Red Light", "Illegal Lane Change", "Speeding", "Stop Sign", "Illegal Turn"};
+    private static final String[] VIOLATION_FINES = {"₹1000", "₹1500", "₹2000", "₹500", "₹1500"}; // UPDATED Illegal Lane Change fine
 
     // Enum for AutoModeState, mirroring TS logic
      private enum AutoModeState {
@@ -378,7 +378,7 @@ public class SimulationService {
 
     /**
      * Adds a violation record to the log.
-     * MODIFIED: Randomly selects a violation type. Does NOT increment incident count.
+     * MODIFIED: Randomly selects a violation type and corresponding INR fine.
      * @param roadNameString The name of the road where the violation occurred.
      */
     public void addViolation(String roadNameString) {
@@ -388,6 +388,11 @@ public class SimulationService {
 
         // *** MODIFIED: Select random violation type and fine ***
         int violationIndex = random.nextInt(VIOLATION_TYPES.length);
+        // Ensure index is within bounds of both arrays
+        if (violationIndex >= VIOLATION_FINES.length) {
+            System.err.println("Error: Violation index out of bounds for fines. Defaulting.");
+            violationIndex = 0; // Default to Red Light
+        }
         String type = VIOLATION_TYPES[violationIndex];
         String fine = VIOLATION_FINES[violationIndex];
         // *** End Modification ***
@@ -397,7 +402,6 @@ public class SimulationService {
         if (violations.size() > MAX_LOG_SIZE) {
             violations.pollLast();
         }
-        // *** REMOVED: this.incidentCount.incrementAndGet(); ***
     }
 
 
