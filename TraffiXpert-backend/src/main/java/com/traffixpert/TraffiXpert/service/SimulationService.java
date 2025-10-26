@@ -1,3 +1,4 @@
+/* krayven06/traffixpert/TraffiXpert-92907556fcb20d7c61fc29c88abf5001b4a08109/TraffiXpert-backend/src/main/java/com/traffixpert/TraffiXpert/service/SimulationService.java */
 package com.traffixpert.TraffiXpert.service; // Adjust package name if needed
 
 import com.traffixpert.TraffiXpert.model.*; // Import model classes
@@ -39,7 +40,8 @@ public class SimulationService {
     private static final long UPDATE_INTERVAL_MS = 50; // Approx 20 FPS
 
     // --- Incident Tracking ---
-    private final AtomicInteger incidentCount = new AtomicInteger(0); // Thread-safe counter for incidents
+    // This counter now only tracks emergency incidents triggered by triggerEmergency()
+    private final AtomicInteger incidentCount = new AtomicInteger(0);
 
     // --- Data Logging ---
     private final ConcurrentLinkedDeque<Violation> violations = new ConcurrentLinkedDeque<>();
@@ -61,6 +63,10 @@ public class SimulationService {
     // --- NEW: Emergency types and randomizer ---
     private static final String[] EMERGENCY_TYPES = {"Ambulance", "Firetruck", "Police Car"}; // Add types
     private final Random random = new Random(); // Add Random instance
+
+    // --- NEW: Define Violation Types ---
+    private static final String[] VIOLATION_TYPES = {"Red Light", "Speeding", "Illegal Lane Change", "Stop Sign"}; // Added new types
+    private static final String[] VIOLATION_FINES = {"$150", "$200", "$100", "$80"}; // Corresponding fines
 
 
     // Enum for AutoModeState, mirroring TS logic
@@ -259,7 +265,7 @@ public class SimulationService {
         this.isEmergency = true;
         this.isAutoMode = false; // Disable auto mode
         this.emergencyTimer = 15000; // Max duration / fallback timer
-        this.incidentCount.incrementAndGet();
+        this.incidentCount.incrementAndGet(); // Increment incident count ONLY for emergencies
 
         // *** MODIFIED: Select random emergency type ***
         String selectedEmergencyType = EMERGENCY_TYPES[random.nextInt(EMERGENCY_TYPES.length)];
@@ -372,19 +378,26 @@ public class SimulationService {
 
     /**
      * Adds a violation record to the log.
+     * MODIFIED: Randomly selects a violation type. Does NOT increment incident count.
      * @param roadNameString The name of the road where the violation occurred.
      */
     public void addViolation(String roadNameString) {
         String id = "V-" + violationIdCounter.getAndIncrement();
         LocalTime time = LocalTime.now();
         String location = roadNameString.substring(0, 1).toUpperCase() + roadNameString.substring(1).toLowerCase() + "bound";
-        String type = "Red Light";
-        String fine = "$150";
+
+        // *** MODIFIED: Select random violation type and fine ***
+        int violationIndex = random.nextInt(VIOLATION_TYPES.length);
+        String type = VIOLATION_TYPES[violationIndex];
+        String fine = VIOLATION_FINES[violationIndex];
+        // *** End Modification ***
+
         Violation violation = new Violation(id, time, location, type, fine);
         violations.addFirst(violation);
         if (violations.size() > MAX_LOG_SIZE) {
             violations.pollLast();
         }
+        // *** REMOVED: this.incidentCount.incrementAndGet(); ***
     }
 
 
@@ -447,7 +460,7 @@ public class SimulationService {
 
 
     // --- Getters for State ---
-    public int getIncidentCount() { return this.incidentCount.get(); }
+    public int getIncidentCount() { return this.incidentCount.get(); } // Still returns the count, but it only increments for emergencies
     public boolean isSimulationRunning() { return isRunning; }
     public List<TrafficSignal> getSignals() { return Collections.unmodifiableList(signals); } // Return unmodifiable view
     public List<Road> getRoads() { return Collections.unmodifiableList(roads); } // Return unmodifiable view
