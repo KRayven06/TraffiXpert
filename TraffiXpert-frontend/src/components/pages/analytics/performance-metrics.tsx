@@ -4,7 +4,6 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 // Remove useSimulation hook
 // import { useSimulation } from "@/context/SimulationContext";
-// import { useSimulation } from "@/context/SimulationContext";
 import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 

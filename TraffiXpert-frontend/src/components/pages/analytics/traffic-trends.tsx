@@ -5,7 +5,6 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 // Remove useSimulation hook
 // import { useSimulation } from "@/context/SimulationContext";
-// import { useSimulation } from "@/context/SimulationContext";
 import { useState } from "react"; 
 import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton

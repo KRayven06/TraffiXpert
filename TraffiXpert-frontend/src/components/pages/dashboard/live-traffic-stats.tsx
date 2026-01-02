@@ -3,7 +3,6 @@
 import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"; // Added Tooltip
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartTooltipContent, ChartContainer } from "@/components/ui/chart"; // Import Chart components
-import { ChartTooltipContent, ChartContainer } from "@/components/ui/chart"; // Import Chart components
 import useSWR from "swr"; // Add useSWR
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
