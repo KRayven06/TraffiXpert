@@ -1,8 +1,9 @@
+```
 "use client";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { AlertTriangle, ShieldAlert, Timer, Car } from "lucide-react";
-import { useState, useEffect } from "react";
+import { AlertTriangle, Users, Coins, Activity } from "lucide-react";
+import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // --- Define Types matching Backend API responses ---
@@ -32,41 +33,6 @@ interface IncidentCountDTO {
 import { API_BASE_URL } from "@/lib/config";
 
 export function TodaySummary() {
-    // State for fetched data
-    const [stats, setStats] = useState<StatsDTO | null>(null);
-    const [violations, setViolations] = useState<ViolationDTO[] | null>(null);
-    const [incidentCount, setIncidentCount] = useState<number | null>(null); // NEW state for incidents
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    // Fetch data periodically
-    useEffect(() => {
-        const fetchData = async () => {
-            let fetchError = null;
-            try {
-                // Fetch stats, violations, and incidents in parallel
-                const [statsResponse, violationsResponse, incidentsResponse] = await Promise.all([ // Added incidentsResponse
-                    fetch(`${API_BASE_URL}/stats`),
-                    fetch(`${API_BASE_URL}/violations`),
-                    fetch(`${API_BASE_URL}/stats/incidents`) // Fetch from new endpoint
-                ]);
-
-                // Process Stats
-                if (!statsResponse.ok) {
-                    fetchError = `Failed stats: ${statsResponse.status}`;
-                    console.error(fetchError);
-                     // Keep previous state on error
-                    // setStats(null);
-                } else {
-                    const statsData: StatsDTO = await statsResponse.json();
-                    setStats(statsData);
-                }
-
-                // Process Violations
-                if (!violationsResponse.ok) {
-                    const errorMsg = `Failed violations: ${violationsResponse.status}`;
-                    fetchError = fetchError ? `${fetchError}; ${errorMsg}` : errorMsg;
-                    console.error(errorMsg);
                      // Keep previous state on error
                     // setViolations(null);
                 } else {
@@ -110,6 +76,12 @@ export function TodaySummary() {
         return () => clearInterval(intervalId);
     // *** CORRECTED DEPENDENCY ARRAY: Changed from [isLoading] to [] ***
     }, []); // Empty array ensures this effect runs only once on mount
+
+    // Calculate derived values safely
+  const totalViolations = violations ? violations.length : 0;
+  const totalIncidents = incidentsData ? incidentsData.incidentCount : 0;
+  const activeVehicles = stats ? stats.totalVehicles : 0;
+  const avgWaitTime = stats ? Math.round(stats.avgWaitTime) : 0;
 
     // Define the structure for summary items, including mapping from backend data
     const summaryItemsConfig = [
