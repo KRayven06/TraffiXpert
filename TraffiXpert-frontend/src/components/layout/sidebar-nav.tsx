@@ -23,14 +23,14 @@ const links = [
   { href: "/how-it-works", label: "How It Works", icon: Cpu },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ onLinkClick }: { onLinkClick?: () => void }) {
   const pathname = usePathname();
 
   return (
     <SidebarMenu>
       {links.map((link) => (
         <SidebarMenuItem key={link.href}>
-          <Link href={link.href}>
+          <Link href={link.href} onClick={onLinkClick}>
             <SidebarMenuButton
               asChild
               isActive={pathname === link.href}

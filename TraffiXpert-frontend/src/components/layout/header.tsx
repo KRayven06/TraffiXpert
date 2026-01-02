@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -19,12 +21,13 @@ const getPageTitle = (pathname: string) => {
 export function Header() {
     const pathname = usePathname();
     const title = getPageTitle(pathname);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:px-6">
       <div className="flex items-center gap-2 md:hidden">
         {/* Mobile Nav Trigger */}
-        <Sheet>
+        <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden">
                     <Menu className="h-5 w-5" />
@@ -36,7 +39,7 @@ export function Header() {
                    <SheetTitle className="font-headline text-lg">TraffiXpert</SheetTitle>
                 </SheetHeader>
                 <div className="py-2">
-                    <SidebarNav />
+                    <SidebarNav onLinkClick={() => setIsMobileMenuOpen(false)} />
                 </div>
             </SheetContent>
         </Sheet>
