@@ -33,12 +33,12 @@ export function SystemStatus() {
       return res.json();
   }, { refreshInterval: 10000 }); // Check every 10 seconds
 
-  // Default fallback if loading or error (optional, but good for UX)
+  // Default fallback if loading or error
   const components = data?.components || {
-      "Simulation Engine": "unknown",
-      "Database Connection": "unknown",
-      "AI Violation Detection": "unknown",
-      "Intersection Sensors": "unknown"
+      "Simulation Engine": error ? "offline" : "unknown",
+      "Database Connection": error ? "offline" : "unknown",
+      "AI Violation Detection": error ? "offline" : "unknown",
+      "Intersection Sensors": error ? "offline" : "unknown"
   };
 
   return (
@@ -67,8 +67,9 @@ export function SystemStatus() {
             })
         )}
         {error && (
-            <div className="text-destructive text-sm text-center">
-                System Unreachable
+            <div className="flex items-center gap-2 justify-center text-destructive text-sm font-medium pt-2 border-t">
+                <XCircle className="h-4 w-4" />
+                <span>System Unreachable</span>
             </div>
         )}
       </CardContent>
