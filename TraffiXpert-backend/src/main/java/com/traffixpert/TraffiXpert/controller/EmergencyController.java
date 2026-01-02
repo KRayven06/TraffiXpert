@@ -5,7 +5,6 @@ import com.traffixpert.TraffiXpert.dto.EmergencyEventDTO;
 import com.traffixpert.TraffiXpert.model.EmergencyEvent;
 import com.traffixpert.TraffiXpert.service.SimulationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,7 +15,6 @@ import java.util.stream.Collectors; // Import Collectors
 
 @RestController
 @RequestMapping("/api/emergency") // Base path for emergency endpoints
-@CrossOrigin(origins = "http://localhost:9002") // Allow frontend access
 public class EmergencyController {
 
     private final SimulationService simulationService;
@@ -32,6 +30,7 @@ public class EmergencyController {
      * Endpoint to get the log of recent emergency events.
      * MODIFIED: Returns formatted DTO list.
      * Accessed via GET request to /api/emergency/log
+     * 
      * @return A list of EmergencyEventDTO objects.
      */
     @GetMapping("/log")
@@ -49,6 +48,8 @@ public class EmergencyController {
                 .collect(Collectors.toList());
     }
 
-     // --- We might add POST /api/emergency/trigger later if needed separately from ControlController ---
-     // The trigger logic is currently in ControlController's /api/control/emergency/trigger endpoint
+    // --- We might add POST /api/emergency/trigger later if needed separately from
+    // ControlController ---
+    // The trigger logic is currently in ControlController's
+    // /api/control/emergency/trigger endpoint
 }

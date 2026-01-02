@@ -4,7 +4,6 @@ import com.traffixpert.TraffiXpert.model.Violation;
 import com.traffixpert.TraffiXpert.dto.ViolationDTO; // Import the new DTO
 import com.traffixpert.TraffiXpert.service.SimulationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,7 +14,6 @@ import java.util.stream.Collectors; // Import Collectors
 
 @RestController
 @RequestMapping("/api/violations") // Base path for violation endpoints
-@CrossOrigin(origins = "http://localhost:9002") // Allow frontend access
 public class ViolationController {
 
     private final SimulationService simulationService;
@@ -30,6 +28,7 @@ public class ViolationController {
     /**
      * Endpoint to get the list of recent violations.
      * Accessed via GET request to /api/violations
+     * 
      * @return A list of ViolationDTO objects with formatted time.
      */
     @GetMapping

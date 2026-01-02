@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/ai")
-@CrossOrigin(origins = "http://localhost:9002")
 public class AiController {
 
     private final ReportService reportService;
@@ -50,12 +49,13 @@ public class AiController {
     public ResponseEntity<DetectViolationOutputDTO> detectTrafficViolation(
             @RequestBody DetectViolationInputDTO violationInput) { // Use @RequestBody
         try {
-            // Assumes violationService.detectViolationFromImage exists and returns the output DTO
+            // Assumes violationService.detectViolationFromImage exists and returns the
+            // output DTO
             DetectViolationOutputDTO result = violationService.detectViolationFromImage(violationInput);
             return ResponseEntity.ok(result); // Return 200 OK with the result
         } catch (Exception e) {
-             System.err.println("Error detecting violation: " + e.getMessage()); // Basic logging
-             return ResponseEntity.internalServerError().build(); // Return 500
+            System.err.println("Error detecting violation: " + e.getMessage()); // Basic logging
+            return ResponseEntity.internalServerError().build(); // Return 500
         }
     }
 
