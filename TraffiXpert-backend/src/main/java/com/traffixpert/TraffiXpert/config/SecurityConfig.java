@@ -54,7 +54,9 @@ public class SecurityConfig {
         // Allow requests from origins defined in application.properties
         // If multiple origins logic is needed, we'd split the string. For now assuming
         // single or comma-separated.
-        configuration.setAllowedOrigins(Arrays.asList(corsAllowedOrigins.split(",")));
+        // Use setAllowedOriginPatterns instead of setAllowedOrigins to support wildcard
+        // "*" with credentials
+        configuration.setAllowedOriginPatterns(Arrays.asList(corsAllowedOrigins.split(",")));
         // Allow common HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Allow common headers
