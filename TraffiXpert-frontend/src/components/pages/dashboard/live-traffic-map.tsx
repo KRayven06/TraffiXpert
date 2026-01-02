@@ -4,6 +4,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { API_BASE_URL } from "@/lib/config";
 
 // --- Type Definitions (same as before) ---
 type SignalState = "GREEN" | "YELLOW" | "RED";
@@ -140,7 +141,7 @@ export function LiveTrafficMap() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/simulation/state');
+        const response = await fetch(`${API_BASE_URL}/simulation/state`);
         if (!response.ok) {
            setError(`Failed to fetch state: ${response.status}`);
            return;

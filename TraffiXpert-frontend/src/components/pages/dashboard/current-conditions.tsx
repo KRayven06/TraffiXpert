@@ -16,7 +16,7 @@ interface StatsDTO {
 // --- End Type Definition ---
 
 // Base URL for your Spring Boot backend API
-const API_BASE_URL = 'http://localhost:8080/api';
+import { API_BASE_URL } from "@/lib/config";
 
 const weatherIcons = [
     <Sun key="sun" className="h-6 w-6 text-yellow-500" />,
