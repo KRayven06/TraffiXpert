@@ -33,7 +33,7 @@ export function LiveTrafficStats() {
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch stats");
     return res.json();
-  }, { refreshInterval: 5000 }); // Refresh every 5 seconds (less aggressive than map)
+  }, { refreshInterval: 1000 }); // Refresh every 1 second (faster updates)
 
   const isLoading = !stats && !statsError;
   const error = statsError ? "Could not load stats." : null;

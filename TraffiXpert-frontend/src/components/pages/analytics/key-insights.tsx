@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Remove useSimulation hook
 // import { useSimulation } from "@/context/SimulationContext";
 import { Car, AlertTriangle, TrafficCone, ShieldCheck } from "lucide-react";
-import { useMemo, useState, useEffect } from "react"; // Add useState, useEffect
+import { useMemo } from "react";
+import useSWR from "swr"; // Add useSWR
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 // --- Define Types matching Backend API responses ---
@@ -29,55 +30,18 @@ interface ViolationDTO {
 import { API_BASE_URL } from "@/lib/config";
 
 export function KeyInsights() {
-    // State for fetched data
-    const [stats, setStats] = useState<StatsDTO | null>(null);
-    const [violations, setViolations] = useState<ViolationDTO[] | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    // Fetcher function
+    const fetcher = async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+    };
 
-    // Fetch data periodically
-    useEffect(() => {
-        const fetchData = async () => {
-          let fetchError = null;
-          try {
-            // Fetch stats and violations in parallel
-            const [statsResponse, violationsResponse] = await Promise.all([
-              fetch(`${API_BASE_URL}/stats`),
-              fetch(`${API_BASE_URL}/violations`)
-            ]);
+    const { data: stats, error: statsError } = useSWR<StatsDTO>(`${API_BASE_URL}/stats`, fetcher, { refreshInterval: 10000 });
+    const { data: violations, error: violationsError } = useSWR<ViolationDTO[]>(`${API_BASE_URL}/violations`, fetcher, { refreshInterval: 10000 });
 
-            if (!statsResponse.ok) {
-               fetchError = `Failed stats: ${statsResponse.status}`; // Shorter error
-            } else {
-                 const statsData: StatsDTO = await statsResponse.json();
-                 setStats(statsData);
-            }
-
-            if (!violationsResponse.ok) {
-                 fetchError = fetchError ? `${fetchError}, violations: ${violationsResponse.status}` : `Failed violations: ${violationsResponse.status}`; // Combine errors
-            } else {
-                const violationsData: ViolationDTO[] = await violationsResponse.json();
-                setViolations(violationsData);
-            }
-
-            // Set combined error or clear it
-            setError(fetchError);
-
-          } catch (err: any) { // Catch specific error type
-            console.error("Error fetching insights data:", err);
-            setError(err.message || "Connection error."); // Shorter connection error
-          } finally {
-            // Set loading false only after first attempt
-            if (isLoading) setIsLoading(false);
-          }
-        };
-
-        fetchData(); // Initial fetch
-        // Fetch insights data less frequently, e.g., every 10 seconds
-        const intervalId = setInterval(fetchData, 10000); // 10000ms = 10 seconds
-
-        return () => clearInterval(intervalId); // Cleanup interval
-    }, [isLoading]);
+    const isLoading = (!stats && !statsError) || (!violations && !violationsError);
+    const error = statsError || violationsError ? "Connection error." : null;
 
 
     // Generate insights using useMemo based on fetched data

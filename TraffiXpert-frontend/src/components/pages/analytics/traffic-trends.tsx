@@ -35,26 +35,24 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function TrafficTrends() {
+  // State for historical throughput data (collected client-side based on stats)
+  const [throughputData, setThroughputData] = useState<{time: string, volume: number}[]>([]);
+
   // Use SWR for auto-caching, revalidation, and deduping
   const { data: stats, error: statsError } = useSWR<StatsDTO>(`${API_BASE_URL}/stats`, async (url: string) => {
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch stats");
     return res.json();
   }, { 
-      refreshInterval: 2000, // Fetch every 2 seconds for trends
+      refreshInterval: 2000, 
       onSuccess: (data) => {
-         // Update throughput data when new stats arrive
          const now = new Date();
          const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-         // Calculate current total vehicles on roads from the new stats
-         const currentVolume = data ? Object.values(data.vehiclesByDirection).reduce((a, b) => a + b, 0) : 0;
+         const currentVolume = data ? Object.values(data.vehiclesByDirection).reduce((a: number, b: number) => a + b, 0) : 0;
 
          setThroughputData(prevData => {
            const newData = [...prevData, { time: timeLabel, volume: currentVolume }];
-           // Keep only the last 6 entries
-           if (newData.length > 6) {
-             return newData.slice(newData.length - 6);
-           }
+           if (newData.length > 6) return newData.slice(newData.length - 6);
            return newData;
          });
       }
