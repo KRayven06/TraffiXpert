@@ -95,6 +95,8 @@ const Sidebar = React.forwardRef<
       data-collapsed={isExpanded ? "false" : "true"}
       className={cn(
         "group/sidebar fixed z-50 flex h-full flex-col border-r bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
+        // Desktop: w-64 or w-16 based on expanded state
+        "hidden md:flex",
         isExpanded ? "w-64" : "w-16",
         className
       )}
@@ -148,7 +150,10 @@ const SidebarInset = React.forwardRef<
       ref={ref}
       className={cn(
         "flex h-screen flex-col transition-all duration-300 ease-in-out",
-        isExpanded ? "pl-64" : "pl-16",
+        // Mobile: No padding (pl-0)
+        // Desktop: pl-64 or pl-16 based on state
+        "pl-0", 
+        isExpanded ? "md:pl-64" : "md:pl-16",
         className
       )}
       {...props}
