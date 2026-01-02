@@ -103,7 +103,7 @@ Car.displayName = 'Car'; // Add display name for React DevTools
 
 
 // --- Interpolation Logic ---
-const FETCH_INTERVAL = 100; // ms - How often we fetch new state from backend
+const FETCH_INTERVAL = 300; // ms - Increased base interpolation window for smoother animation over network
 
 // Linear interpolation function
 function lerp(start: number, end: number, t: number): number {
@@ -139,37 +139,80 @@ export function LiveTrafficMap() {
 
   // Fetching Logic (runs on interval)
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
     const fetchData = async () => {
       try {
+        const fetchStart = performance.now();
         const response = await fetch(`${API_BASE_URL}/simulation/state`);
+        
+        if (!isMounted) return; // Stop if unmounted
+
         if (!response.ok) {
            setError(`Failed to fetch state: ${response.status}`);
+           // If error, retry after a longer delay
+           timeoutId = setTimeout(fetchData, 2000); 
            return;
         }
         const data: SimulationStateDTO = await response.json();
 
+        // Calculate actual network latency to adjust interpolation
+        const now = performance.now();
+        const latency = now - fetchStart;
+        
+        // Dynamic fetch interval based on latency (aim for 200ms or latency + 50ms)
+        // This ensures checking frequently but not overlapping requests
+        const nextDelay = Math.max(50, 200 - latency);
+
         // Store current latestState as the previous state *before* updating
-        previousStateRef.current = latestState;
-        // Update latest state
-        setLatestState(data);
+        // Note: In this closure, 'latestState' refers to the state at the time the effect ran.
+        // We actually need the *current* state. 
+        // Best approach for recursive fetch is to rely on refs for state tracking in animate loop,
+        // OR rely on React state updates.
+        // Simplified: Just update state. previousState logic is handled in 'previousStateRef.current = latestState' 
+        // BUT 'latestState' is stale here if we don't include it in dep array working with setInterval.
+        // With recursive setTimeout, we are always in a closure. 
+        
+        // Fix: Update ref BEFORE setting new state.
+        // Since we can't easily get "current" state in this async closure without refs, 
+        // we'll optimistically set it.
+        // Actually, previousStateRef is updated in the effect dependency or we can manually update it here
+        // if we have access to the *real* latest state.
+        // A better pattern for interpolation is updating refs directly for the loop.
+        
+        setLatestState((prevState) => {
+            previousStateRef.current = prevState; // Capture what was essentially "current" before this update
+            return data;
+        });
+
         // Record the time we received this update
-        lastUpdateTimeRef.current = performance.now();
+        lastUpdateTimeRef.current = now;
         // Update signals directly (no interpolation needed)
         setCurrentSignals(data.signals);
 
         setError(null);
+
+        // Schedule next fetch
+        timeoutId = setTimeout(fetchData, nextDelay);
+
       } catch (err) {
         console.error("Error fetching simulation state:", err);
         setError("Could not connect to backend.");
+        // Retry logic on connection failure
+        timeoutId = setTimeout(fetchData, 5000);
       } finally {
-        if (isLoading) setIsLoading(false);
+        if (isMounted && isLoading) setIsLoading(false);
       }
     };
 
     fetchData(); // Initial fetch
-    const intervalId = setInterval(fetchData, FETCH_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [isLoading, latestState]); // Dependency on latestState ensures previousStateRef updates correctly
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, []); // Empty dependency array - fetchData is recursive and self-contained now.
 
 
   // Animation Loop Logic (runs every frame)
