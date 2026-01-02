@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <Header />
-        <main className="flex-1 p-6 lg:p-8 bg-background overflow-auto">
+        <main className="flex-1 p-4 md:p-6 lg:p-8 bg-background overflow-auto">
             {children}
         </main>
       </SidebarInset>

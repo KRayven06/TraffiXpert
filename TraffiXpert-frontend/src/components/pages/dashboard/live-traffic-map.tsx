@@ -87,14 +87,19 @@ const Car = React.memo(({ vehicle }: { vehicle: InterpolatedVehicleProps }) => {
               type === 'EMERGENCY' && 'animate-pulse z-10'
           )}
           style={{
-            left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`,
-            transform: `rotate(${angle}deg)`, transformOrigin: 'center center',
+            // Convert 400x400 coordinate system to percentages
+            left: `${(x / 400) * 100}%`, 
+            top: `${(y / 400) * 100}%`, 
+            width: `${(width / 400) * 100}%`, 
+            height: `${(height / 400) * 100}%`,
+            transform: `rotate(${angle}deg)`, 
+            transformOrigin: 'center center',
           }}
         >
-          <div className="absolute top-1 left-0.5 w-1.5 h-1 bg-gray-900/20 rounded-sm" />
-          <div className="absolute top-1 right-0.5 w-1.5 h-1 bg-gray-900/20 rounded-sm" />
+          <div className="absolute top-[10%] left-[10%] w-[30%] h-[20%] bg-gray-900/20 rounded-sm" />
+          <div className="absolute top-[10%] right-[10%] w-[30%] h-[20%] bg-gray-900/20 rounded-sm" />
           {type === 'EMERGENCY' && (
-              <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1 rounded-full bg-blue-500 animate-pulse" />
+              <div className="absolute -top-[15%] left-1/2 -translate-x-1/2 w-[30%] h-[20%] rounded-full bg-blue-500 animate-pulse" />
           )}
         </div>
     );
@@ -274,7 +279,7 @@ export function LiveTrafficMap() {
    if (isLoading) { /* ... Loading state ... */
      return (
        <Card className="overflow-hidden h-full">
-         <CardContent className="p-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800 h-full">
+         <CardContent className="p-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800 h-full min-h-[300px]">
              <div className="text-muted-foreground">Loading Map...</div>
          </CardContent>
        </Card>
@@ -283,7 +288,7 @@ export function LiveTrafficMap() {
   if (error) { /* ... Error state ... */
        return (
        <Card className="overflow-hidden h-full border-destructive">
-         <CardContent className="p-4 flex flex-col items-center justify-center bg-destructive/10 h-full">
+         <CardContent className="p-4 flex flex-col items-center justify-center bg-destructive/10 h-full min-h-[300px]">
              <p className="text-destructive font-semibold">Map Error</p>
              <p className="text-destructive/80 text-sm text-center">{error}</p>
          </CardContent>
@@ -293,7 +298,7 @@ export function LiveTrafficMap() {
    if (!latestState) { /* ... Waiting for data state ... */
     return (
       <Card className="overflow-hidden h-full">
-        <CardContent className="p-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800 h-full">
+        <CardContent className="p-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800 h-full min-h-[300px]">
             <div className="text-muted-foreground">Waiting for simulation data...</div>
         </CardContent>
       </Card>
@@ -305,37 +310,39 @@ export function LiveTrafficMap() {
   const vehicles = interpolatedVehicles;
 
   // INCREASED OFFSET VALUE for signal positioning
-  const signalOffset = '65px'; // Changed from 45px to 65px
+  const signalOffset = '16.25%'; // 65px / 400px = 16.25%
 
   return (
     <Card className="overflow-hidden h-full">
       <CardContent className="p-0 flex items-center justify-center bg-gray-200 dark:bg-gray-800 h-full">
-        <div className="relative w-[400px] h-[400px] bg-gray-400 dark:bg-gray-600 overflow-hidden">
-          {/* Roads, Markings */}
-          <div className="absolute top-1/2 left-0 w-full h-20 bg-gray-700 dark:bg-gray-900 -translate-y-1/2" />
-          <div className="absolute left-1/2 top-0 h-full w-20 bg-gray-700 dark:bg-gray-900 -translate-x-1/2" />
-          <div className="absolute top-1/2 left-0 w-[calc(50%-40px)] h-0.5 border-b-4 border-dashed border-gray-500" />
-          <div className="absolute top-1/2 right-0 w-[calc(50%-40px)] h-0.5 border-b-4 border-dashed border-gray-500" />
-          <div className="absolute left-1/2 top-0 h-[calc(50%-40px)] w-0.5 border-l-4 border-dashed border-gray-500" />
-          <div className="absolute left-1/2 bottom-0 h-[calc(50%-40px)] w-0.5 border-l-4 border-dashed border-gray-500" />
+        {/* Responsive Container: w-full, aspect-square, max-width to not get too huge */}
+        <div className="relative w-full max-w-[500px] aspect-square bg-gray-400 dark:bg-gray-600 overflow-hidden mx-auto">
+          {/* Roads, Markings - Using Percentages */}
+          <div className="absolute top-1/2 left-0 w-full h-[20%] bg-gray-700 dark:bg-gray-900 -translate-y-1/2" /> {/* 20px/400px is 5%, but road is wider usually. Assuming 80px road -> 20% */}
+          <div className="absolute left-1/2 top-0 h-full w-[20%] bg-gray-700 dark:bg-gray-900 -translate-x-1/2" />
+          
+          {/* Dashed Lines */}
+          <div className="absolute top-1/2 left-0 w-[40%] h-[0.5%] border-b-[3px] border-dashed border-gray-500" />
+          <div className="absolute top-1/2 right-0 w-[40%] h-[0.5%] border-b-[3px] border-dashed border-gray-500" />
+          <div className="absolute left-1/2 top-0 h-[40%] w-[0.5%] border-l-[3px] border-dashed border-gray-500" />
+          <div className="absolute left-1/2 bottom-0 h-[40%] w-[0.5%] border-l-[3px] border-dashed border-gray-500" />
 
-          {/* Traffic Lights (use currentSignals) - INCREASED OFFSET */}
-          {/* Signal indices based on SimulationService: 0:N, 1:S, 2:E, 3:W */}
+          {/* Traffic Lights (use currentSignals) - Positioned with Percentages */}
           {signals.length >= 4 && (
               <>
-                {/* Northbound Traffic Light (Signal 0): Positioned bottom-right of intersection, facing South */}
+                {/* Northbound (Bottom Right) */}
                 <div className="absolute top-[calc(50%+var(--offset))] left-[calc(50%+var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
                     <TrafficLight color={LightColorMap[signals[0].state]} rotation={180} />
                 </div>
-                 {/* Westbound Traffic Light (Signal 3): Positioned top-right of intersection, facing West */}
+                 {/* Westbound (Top Right) */}
                  <div className="absolute top-[calc(50%-var(--offset))] left-[calc(50%+var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
                     <TrafficLight color={LightColorMap[signals[3].state]} rotation={90} />
                 </div>
-                 {/* Southbound Traffic Light (Signal 1): Positioned top-left of intersection, facing North */}
+                 {/* Southbound (Top Left) */}
                  <div className="absolute top-[calc(50%-var(--offset))] left-[calc(50%-var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
                     <TrafficLight color={LightColorMap[signals[1].state]} rotation={0} />
                  </div>
-                 {/* Eastbound Traffic Light (Signal 2): Positioned bottom-left of intersection, facing East */}
+                 {/* Eastbound (Bottom Left) */}
                  <div className="absolute top-[calc(50%+var(--offset))] left-[calc(50%-var(--offset))] -translate-x-1/2 -translate-y-1/2" style={{ '--offset': signalOffset } as React.CSSProperties}>
                     <TrafficLight color={LightColorMap[signals[2].state]} rotation={-90} />
                  </div>
