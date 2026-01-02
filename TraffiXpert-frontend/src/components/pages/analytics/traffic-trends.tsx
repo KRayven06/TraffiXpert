@@ -5,7 +5,9 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { ChartTooltipContent, ChartContainer, type ChartConfig } from "@/components/ui/chart";
 // Remove useSimulation hook
 // import { useSimulation } from "@/context/SimulationContext";
-import { useEffect, useState } from "react"; // Add useState, useEffect
+// import { useSimulation } from "@/context/SimulationContext";
+import { useState } from "react"; 
+import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 // --- Define Type for Stats (matches backend DTO/Record) ---
@@ -34,26 +36,14 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function TrafficTrends() {
-  // State for fetched stats data
-  const [stats, setStats] = useState<StatsDTO | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // State for historical throughput data (collected client-side based on stats)
-  const [throughputData, setThroughputData] = useState<{time: string, volume: number}[]>([]);
-
-  // Fetch stats periodically
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/stats`);
-        if (!response.ok) {
-           throw new Error(`Failed to fetch stats: ${response.status}`);
-        }
-        const data: StatsDTO = await response.json();
-        setStats(data);
-        setError(null);
-
+  // Use SWR for auto-caching, revalidation, and deduping
+  const { data: stats, error: statsError } = useSWR<StatsDTO>(`${API_BASE_URL}/stats`, async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch stats");
+    return res.json();
+  }, { 
+      refreshInterval: 2000, // Fetch every 2 seconds for trends
+      onSuccess: (data) => {
          // Update throughput data when new stats arrive
          const now = new Date();
          const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
@@ -62,28 +52,17 @@ export function TrafficTrends() {
 
          setThroughputData(prevData => {
            const newData = [...prevData, { time: timeLabel, volume: currentVolume }];
-           // Keep only the last 6 entries (similar to original logic)
+           // Keep only the last 6 entries
            if (newData.length > 6) {
              return newData.slice(newData.length - 6);
            }
            return newData;
          });
-
-      } catch (err: any) { // Catch specific error type
-        console.error("Error fetching traffic trends:", err);
-        setError(err.message || "Could not load trends.");
-        // Don't update throughput if fetch fails
-      } finally {
-        if (isLoading) setIsLoading(false);
       }
-    };
+  });
 
-    fetchData(); // Initial fetch
-    // Fetch stats every 2 seconds for trends
-    const intervalId = setInterval(fetchData, 1000); // 2000ms = 2 seconds
-
-    return () => clearInterval(intervalId); // Cleanup
-  }, [isLoading]); // Rerun effect only if isLoading changes
+  const isLoading = !stats && !statsError;
+  const error = statsError ? "Could not load trends." : null;
 
   // Transform fetched stats data for the "Live Volume by Direction" chart
   const liveVolumeData = stats ? [

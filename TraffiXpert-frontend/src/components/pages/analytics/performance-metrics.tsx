@@ -4,7 +4,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 // Remove useSimulation hook
 // import { useSimulation } from "@/context/SimulationContext";
-import { useState, useEffect } from "react"; // Add useState, useEffect
+// import { useSimulation } from "@/context/SimulationContext";
+import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 // --- Define Type for Stats (matches backend DTO/Record) ---
@@ -28,46 +29,20 @@ const targets = {
 };
 
 export function PerformanceMetrics() {
-  // State for fetched stats data
-  const [stats, setStats] = useState<StatsDTO | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use SWR for auto-caching, revalidation, and deduping
+  const { data: stats, error: statsError } = useSWR<StatsDTO>(`${API_BASE_URL}/stats`, async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch stats");
+    return res.json();
+  }, { refreshInterval: 5000 });
 
-   // State for signal optimization (simulated, as backend doesn't provide it yet)
-  const [signalOptimization, setSignalOptimization] = useState(0);
+  const isLoading = !stats && !statsError;
+  const error = statsError ? "Could not load metrics." : null;
 
-  // Fetch stats periodically
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/stats`);
-        if (!response.ok) {
-           throw new Error(`Failed to fetch stats: ${response.status}`);
-        }
-        const data: StatsDTO = await response.json();
-        setStats(data);
-        setError(null);
-
-        // Simulate signal optimization based on fetched stats (similar to original)
-        // TODO: Replace with actual backend value if available
-        const isAutoMode = data.avgWaitTime < 50; // Simple heuristic based on wait time for demo
-        const newSignalOptimization = isAutoMode ? 92 + Math.random() * 5 : 65 + Math.random() * 10;
-        setSignalOptimization(newSignalOptimization);
-
-      } catch (err: any) { // Catch specific error type
-        console.error("Error fetching performance metrics:", err);
-        setError(err.message || "Could not load metrics.");
-      } finally {
-        if (isLoading) setIsLoading(false);
-      }
-    };
-
-    fetchData(); // Initial fetch
-    // Fetch stats periodically, e.g., every 5 seconds
-    const intervalId = setInterval(fetchData, 1000); // 5000ms = 5 seconds
-
-    return () => clearInterval(intervalId); // Cleanup
-  }, [isLoading]);
+  // Simulate signal optimization based on fetched stats (similar to original)
+  // TODO: Replace with actual backend value if available
+  const isAutoMode = stats ? stats.avgWaitTime < 50 : true; // Simple heuristic
+  const signalOptimization = isAutoMode ? (stats ? 92 + (stats.totalVehicles % 5) : 95) : (stats ? 65 + (stats.totalVehicles % 10) : 70);
 
 
   // Calculate metrics based on fetched stats or show loading/error values

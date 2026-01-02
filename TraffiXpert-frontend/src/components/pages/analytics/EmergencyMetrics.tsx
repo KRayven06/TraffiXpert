@@ -3,7 +3,7 @@
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress"; // Import Progress
-import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Siren, Zap } from "lucide-react"; // Icons for emergency
 
@@ -30,66 +30,21 @@ const avgResponseTarget = 15; // Target average response time in seconds (lower 
 const incidentTarget = 3;    // Target max incidents per day (lower is better)
 
 export function EmergencyMetrics() {
-  // State for fetched data
-  const [stats, setStats] = useState<StatsDTO | null>(null);
-  const [incidentCount, setIncidentCount] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Fetcher function
+  const fetcher = async (url: string) => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+  };
 
-  // Fetch data periodically
-  useEffect(() => {
-    const fetchData = async () => {
-      let fetchError = null;
-      // Set loading to true only on the very first run
-      if (isLoading && !stats && incidentCount === null && !error) {
-         // Keep initial loading state
-      } else {
-         // Don't reset loading for background updates
-      }
+  // Use SWR for concurrent fetching
+  const { data: stats, error: statsError } = useSWR<StatsDTO>(`${API_BASE_URL}/stats`, fetcher, { refreshInterval: 5000 });
+  const { data: incidentData, error: incidentError } = useSWR<IncidentCountDTO>(`${API_BASE_URL}/stats/incidents`, fetcher, { refreshInterval: 5000 });
 
-      try {
-        // Fetch stats and incidents in parallel
-        const [statsResponse, incidentsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/stats`),
-          fetch(`${API_BASE_URL}/stats/incidents`)
-        ]);
-
-        if (!statsResponse.ok) {
-           fetchError = `Failed stats: ${statsResponse.status}`;
-        } else {
-             const statsData: StatsDTO = await statsResponse.json();
-             setStats(statsData);
-        }
-
-        if (!incidentsResponse.ok) {
-             const errorMsg = `Failed incidents: ${incidentsResponse.status}`;
-             fetchError = fetchError ? `${fetchError}, ${errorMsg}` : errorMsg;
-        } else {
-            const incidentsData: IncidentCountDTO = await incidentsResponse.json();
-            setIncidentCount(incidentsData.incidentCount);
-        }
-
-        setError(fetchError); // Set combined error or null
-
-      } catch (err: any) { // Catch specific error type
-        console.error("Error fetching emergency metrics:", err);
-        // Keep previous data on error if available
-        if (!stats) setStats(null);
-        if (incidentCount === null) setIncidentCount(null);
-        setError(err.message || "Connection error.");
-      } finally {
-        // Set loading false only after the first attempt
-        if (isLoading) setIsLoading(false);
-      }
-    };
-
-    fetchData(); // Initial fetch
-    // Fetch data periodically, e.g., every 5 seconds
-    const intervalId = setInterval(fetchData, 5000); // 5000ms = 5 seconds
-
-    return () => clearInterval(intervalId); // Cleanup interval
-  // Dependency array ensures effect runs on mount and cleans up properly
-  }, []); // Empty array runs effect once on mount
+  const isLoading = (!stats && !statsError) || (!incidentData && !incidentError);
+  const error = statsError || incidentError ? "Connection error." : null;
+  
+  const incidentCount = incidentData ? incidentData.incidentCount : null;
 
   // Calculate progress towards targets (lower values are better)
   // Value clamped between 0 and 100

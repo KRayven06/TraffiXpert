@@ -3,7 +3,8 @@
 import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"; // Added Tooltip
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartTooltipContent, ChartContainer } from "@/components/ui/chart"; // Import Chart components
-import { useState, useEffect } from "react"; // Add useState, useEffect
+import { ChartTooltipContent, ChartContainer } from "@/components/ui/chart"; // Import Chart components
+import useSWR from "swr"; // Add useSWR
 import { Skeleton } from "@/components/ui/skeleton"; // Import Skeleton
 
 // --- Define Type for Stats (matches backend DTO/Record) ---
@@ -28,36 +29,15 @@ const chartConfig = {
 };
 
 export function LiveTrafficStats() {
-  // State for fetched stats data
-  const [stats, setStats] = useState<StatsDTO | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Use SWR for auto-caching, revalidation, and deduping
+  const { data: stats, error: statsError } = useSWR<StatsDTO>(`${API_BASE_URL}/stats`, async (url: string) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch stats");
+    return res.json();
+  }, { refreshInterval: 5000 }); // Refresh every 5 seconds (less aggressive than map)
 
-  // Fetch stats periodically
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/stats`);
-        if (!response.ok) {
-           throw new Error(`Failed to fetch stats: ${response.status}`);
-        }
-        const data: StatsDTO = await response.json();
-        setStats(data);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching live traffic stats:", err);
-        setError("Could not load stats.");
-      } finally {
-        if (isLoading) setIsLoading(false);
-      }
-    };
-
-    fetchData(); // Initial fetch
-    // Fetch stats less frequently than the map, e.g., every 2 seconds
-    const intervalId = setInterval(fetchData, 100); // 2000ms = 2 seconds
-
-    return () => clearInterval(intervalId); // Cleanup
-  }, [isLoading]);
+  const isLoading = !stats && !statsError;
+  const error = statsError ? "Could not load stats." : null;
 
   // Transform fetched stats data into the format needed by the chart
   const roadData = stats ? [
