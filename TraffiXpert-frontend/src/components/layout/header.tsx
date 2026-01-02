@@ -1,9 +1,11 @@
 "use client";
 
-import { SidebarNav } from "@/components/layout/sidebar-nav"; // Need this
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
+import { usePathname } from 'next/navigation';
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const getPageTitle = (pathname: string) => {
     if (pathname.startsWith('/analytics')) return 'Analytics & Performance';
@@ -30,8 +32,12 @@ export function Header() {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[240px] p-0">
-                <div className="py-4 px-4 font-headline font-semibold text-lg border-b">TraffiXpert</div>
-                <SidebarNav />
+                <SheetHeader className="p-4 border-b">
+                   <SheetTitle className="font-headline text-lg">TraffiXpert</SheetTitle>
+                </SheetHeader>
+                <div className="py-2">
+                    <SidebarNav />
+                </div>
             </SheetContent>
         </Sheet>
       </div>
