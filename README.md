@@ -121,11 +121,3 @@ TraffiXpert is a full-stack application designed to simulate and manage urban tr
     * `public/`: Static assets.
     * `package.json`: Node.js project configuration.
     * `tailwind.config.ts`: Tailwind CSS configuration.
-
-## Future Scope
-
-* **Real AI Integration:** Replace placeholder AI logic with actual machine learning models for violation detection, traffic prediction, and report generation.
-* **IoT Integration:** Connect with Vehicle-to-Infrastructure (V2I) communication systems for more granular control.
-* **Autonomous Vehicle Coordination:** Communicate directly with autonomous vehicles to optimize traffic flow.
-* **Database Persistence:** Store historical data, violations, and user information in a persistent database instead of in-memory structures.
-* **Enhanced Authentication:** Implement robust authentication and authorization using Spring Security.
